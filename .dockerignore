@@ -1,10 +1,17 @@
 /.git
+/.env
+/.env.*
 /.venv
+/.pnpm-store
+/.agents
+/.codex
 /.pytest_cache
 **/.pytest_cache
 **/*.egg-info
+/backend/tests
 /frontend/node_modules
 /frontend/dist
+/frontend/*.tsbuildinfo
 /data
 /models
 .idea
