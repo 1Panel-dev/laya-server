@@ -110,6 +110,18 @@ def test_login_key_inference_usage_revoke_logout(tmp_path):
     missing = client.post("/v1/systemone", json={"questions": PAYLOAD["questions"]}, headers={"Authorization": f"Bearer {key}"})
     assert missing.status_code == 422
     assert missing.json()["detail"]["errors"][0]["loc"] == ["body", "state"]
+    invalid_score = client.post(
+        "/v1/systemone",
+        json={
+            **PAYLOAD,
+            "questions": {
+                "score": {"type": "score", "instructions": "How urgent?", "criteria": ["same", "same"]},
+            },
+        },
+        headers={"Authorization": f"Bearer {key}"},
+    )
+    assert invalid_score.status_code == 422
+    assert invalid_score.json()["detail"]["code"] == "VALIDATION_ERROR"
     assert fake.calls == 0
     prediction = client.post("/v1/systemone", json=PAYLOAD, headers={"Authorization": f"Bearer {key}"})
     assert prediction.status_code == 200, prediction.text
@@ -202,3 +214,29 @@ def test_concurrent_inference_requests_are_not_rejected(tmp_path):
         assert dict(connection.execute("SELECT source, COUNT(*) FROM usage_events GROUP BY source").fetchall()) == {
             "api_key": 2, "playground": 1,
         }
+
+
+def test_question_criteria_validation():
+    from server.schemas import ChoiceQuestion, ScoreQuestion
+    from pydantic import ValidationError
+
+    valid_score = ScoreQuestion(instructions="Rate", type="score", criteria=["low", "medium", "high"])
+    assert valid_score.criteria == ["low", "medium", "high"]
+
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", "low"])
+
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", "   "])
+
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", " low "])
+
+    ChoiceQuestion(instructions="Choose", type="choice", criteria=["option_a", "option_b"])
+    ChoiceQuestion(instructions="Choose", type="choice", criteria={"option_a": "desc A", "option_b": "desc B"})
+
+    with pytest.raises(ValidationError, match="choice labels must be nonempty and unique"):
+        ChoiceQuestion(instructions="Choose", type="choice", criteria=["opt", "opt"])
+
+    with pytest.raises(ValidationError, match="choice labels must be nonempty and unique"):
+        ChoiceQuestion(instructions="Choose", type="choice", criteria=["opt", "  "])

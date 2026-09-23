@@ -37,6 +37,7 @@ const buttonVariants = cva(
   }
 )
 
+/** Renders a button with shared variants, sizes, and optional Slot composition. */
 function Button({
   className,
   variant = "default",
