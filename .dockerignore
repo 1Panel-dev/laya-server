@@ -1,10 +1,13 @@
 /.git
+/.env
 /.venv
 /.pytest_cache
 **/.pytest_cache
 **/*.egg-info
 /frontend/node_modules
 /frontend/dist
+/.idea
+/.vscode
 /data
 /models
 **/__pycache__
