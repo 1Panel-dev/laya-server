@@ -60,7 +60,7 @@ Compose 只启动一个应用服务并将 `127.0.0.1:8080` 暴露给宿主机。
 
 ### 本地开发（热更新）
 
-第一次先执行 `cp .env.example .env`，将 `.env` 中的 `LAYA_ADMIN_USERNAME` 和 `LAYA_ADMIN_PASSWORD` 填好。若使用哈希配置，则将 `LAYA_ADMIN_PASSWORD` 留空并填写 `LAYA_ADMIN_PASSWORD_HASH='...'`（保留单引号）。`scripts/dev-backend.sh` 会把本地来源、SQLite 路径和模型路径设为开发值。确保上面的 Python/前端依赖与三个模型已经准备好。
+第一次先执行 `cp .env.example .env`，将 `.env` 中的 `LAYA_ADMIN_USERNAME` 和 `LAYA_ADMIN_PASSWORD` 填写好。若使用哈希配置，则将 `LAYA_ADMIN_PASSWORD` 留空并填写 `LAYA_ADMIN_PASSWORD_HASH='...'`（保留单引号）。`scripts/dev-backend.sh` 会把本地来源、SQLite 路径和模型路径设为开发值。确保上面的 Python/前端依赖与三个模型已经准备好。
 
 分别打开两个终端，在仓库根目录运行：
 
