@@ -57,7 +57,7 @@ CLAUDE.md
 GEMINI.md
 
 # Editor/IDE
-# .idea/
+.idea/
 # .vscode/
 
 # Secret file
