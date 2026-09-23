@@ -14,8 +14,6 @@ with TemporaryDirectory() as temporary:
     os.environ["LAYA_ADMIN_USERNAME"] = "smoke-admin"
     os.environ.pop("LAYA_ADMIN_PASSWORD", None)
     os.environ["LAYA_ADMIN_PASSWORD_HASH"] = PasswordHasher().hash(password)
-    os.environ["LAYA_PUBLIC_ORIGIN"] = "http://testserver"
-    os.environ["LAYA_ALLOW_INSECURE_LOCAL"] = "1"
     os.environ["LAYA_DATABASE_PATH"] = str(Path(temporary) / "smoke.sqlite3")
     os.environ["LAYA_MODEL_DIR"] = os.environ.get("LAYA_MODEL_DIR", "models")
     os.environ.setdefault("HF_HOME", str(Path(os.environ["LAYA_MODEL_DIR"]) / ".cache"))

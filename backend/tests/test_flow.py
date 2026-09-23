@@ -9,8 +9,6 @@ from fastapi.testclient import TestClient
 
 os.environ.setdefault("LAYA_ADMIN_USERNAME", "test-admin")
 os.environ.setdefault("LAYA_ADMIN_PASSWORD_HASH", PasswordHasher().hash("test-password"))
-os.environ.setdefault("LAYA_PUBLIC_ORIGIN", "http://testserver")
-os.environ.setdefault("LAYA_ALLOW_INSECURE_LOCAL", "1")
 os.environ.setdefault("LAYA_DATABASE_PATH", "/tmp/laya-server-import-test.sqlite3")
 
 from server.config import Settings  # noqa: E402
@@ -51,7 +49,7 @@ def test_multilingual_image_routes_auto_and_rejects_unbundled_models(tmp_path):
         path.touch()
     fake = FakePredictor()
     settings = Settings("admin", PasswordHasher().hash("correct horse battery staple"), tmp_path / "db.sqlite3",
-                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist", "multilingual")
+                        1, tmp_path / "models", None, 1, tmp_path / "missing-dist", "multilingual")
     client = TestClient(create_app(settings, fake))
     assert client.get("/health/ready").status_code == 200
     assert client.get("/internal/models").status_code == 401
@@ -75,8 +73,7 @@ def test_admin_password_from_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("LAYA_ADMIN_USERNAME", "configured-admin")
     monkeypatch.setenv("LAYA_ADMIN_PASSWORD", password)
     monkeypatch.setenv("LAYA_ADMIN_PASSWORD_HASH", "")
-    monkeypatch.setenv("LAYA_PUBLIC_ORIGIN", "http://testserver")
-    monkeypatch.setenv("LAYA_ALLOW_INSECURE_LOCAL", "1")
+    monkeypatch.delenv("LAYA_PUBLIC_ORIGIN", raising=False)
     monkeypatch.setenv("LAYA_DATABASE_PATH", str(tmp_path / "db.sqlite3"))
     settings = Settings.from_env()
     monkeypatch.setenv("LAYA_MODEL_PROFILE", "multilingual")
@@ -91,9 +88,21 @@ def test_admin_password_from_environment(tmp_path, monkeypatch):
     response = client.post(
         "/internal/auth/login",
         json={"username": "configured-admin", "password": password},
-        headers={"Origin": "http://testserver"},
     )
     assert response.status_code == 200
+    assert all("; secure" not in value.lower() for value in response.headers.get_list("set-cookie"))
+    csrf = client.get("/internal/auth/session").json()["csrf_token"]
+    assert client.post("/internal/api-keys", json={"name": "without-origin"},
+                       headers={"X-CSRF-Token": csrf}).status_code == 201
+
+    https_client = TestClient(create_app(settings, FakePredictor()), base_url="https://testserver")
+    secure_login = https_client.post("/internal/auth/login", json={"username": "configured-admin", "password": password})
+    assert secure_login.status_code == 200
+    assert all("; secure" in value.lower() for value in secure_login.headers.get_list("set-cookie"))
+    proxied_login = client.post("/internal/auth/login", json={"username": "configured-admin", "password": password},
+                               headers={"Origin": "https://console.example.com"})
+    assert proxied_login.status_code == 200
+    assert all("; secure" in value.lower() for value in proxied_login.headers.get_list("set-cookie"))
 
     monkeypatch.setenv("LAYA_ADMIN_PASSWORD_HASH", PasswordHasher().hash(password))
     with pytest.raises(RuntimeError, match="exactly one"):
@@ -112,7 +121,7 @@ def test_login_key_inference_usage_revoke_logout(tmp_path):
     fake = FakePredictor()
     db_path = tmp_path / "db.sqlite3"
     settings = Settings("admin", PasswordHasher().hash("correct horse battery staple"), db_path,
-                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
+                        1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
     client = TestClient(create_app(settings, fake))
     origin = {"Origin": "http://testserver"}
 
@@ -122,7 +131,6 @@ def test_login_key_inference_usage_revoke_logout(tmp_path):
     csrf = client.get("/internal/auth/session").json()["csrf_token"]
     assert csrf
     assert client.post("/internal/api-keys", json={"name": "production"}, headers=origin).status_code == 403
-    assert client.post("/internal/api-keys", json={"name": "production"}, headers={"X-CSRF-Token": csrf}).status_code == 403
     assert client.post("/internal/api-keys", json={"name": "production"}, headers={**origin, "X-CSRF-Token": "incorrect"}).status_code == 403
     write_headers = {**origin, "X-CSRF-Token": csrf}
     created = client.post("/internal/api-keys", json={"name": "production"}, headers=write_headers)
@@ -189,7 +197,7 @@ def test_rate_limit_expiry_and_model_failure(tmp_path):
 
     db_path = tmp_path / "db.sqlite3"
     settings = Settings("admin", PasswordHasher().hash("password"), db_path,
-                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
+                        1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
     client = TestClient(create_app(settings, UnavailablePredictor()))
     origin = {"Origin": "http://testserver"}
     assert client.get("/health/ready").json()["detail"]["code"] == "MODEL_UNAVAILABLE"
@@ -218,7 +226,7 @@ def test_rate_limit_expiry_and_model_failure(tmp_path):
 def test_login_after_session_expiry(tmp_path, keep_cookies):
     db_path = tmp_path / "db.sqlite3"
     settings = Settings("admin", PasswordHasher().hash("test-password"), db_path,
-                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
+                        1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
     client = TestClient(create_app(settings, FakePredictor()))
     credentials = {"username": "admin", "password": "test-password"}
     origin = {"Origin": "http://testserver"}
@@ -263,7 +271,7 @@ def test_concurrent_inference_requests_are_not_rejected(tmp_path):
             return super().predict(state, questions, model)
 
     settings = Settings("admin", PasswordHasher().hash("test-password"), tmp_path / "db.sqlite3",
-                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
+                        1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
     app = create_app(settings, ConcurrentPredictor())
     client = TestClient(app)
     origin = {"Origin": "http://testserver"}
