@@ -56,6 +56,9 @@ CLAUDE.md
 /.claude/
 GEMINI.md
 
+# macOS
+.DS_Store
+
 # Editor/IDE
 # .idea/
 # .vscode/
