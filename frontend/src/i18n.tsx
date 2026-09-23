@@ -4,7 +4,7 @@ export type Locale = "zh-CN" | "en" | "zh-TW"
 
 const zhCN = {
   language: "语言",
-  loading: "正在加载控制台…",
+  loading: "正在加载控制台中…",
   home: "首页",
   playground: "Playground",
   usage: "用量",
