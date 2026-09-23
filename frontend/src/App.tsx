@@ -214,7 +214,7 @@ const traditionalSampleRequest = { ...sampleRequest, state: { message: "我的�
 
 function Playground({ csrf }: { csrf: string }) {
   const { t, locale } = useI18n()
-  const [body, setBody] = useState(JSON.stringify(sampleRequest, null, 2))
+  const [body, setBody] = useState(() => JSON.stringify(sampleRequest, null, 2))
   const [result, setResult] = useState("")
   const [resultError, setResultError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
