@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { resolveLocale, type Locale } from "./locale"
 
-export type Locale = "zh-CN" | "en" | "zh-TW"
+export { resolveLocale, type Locale } from "./locale"
 
 const zhCN = {
   language: "语言",
@@ -282,16 +283,6 @@ const zhTW: Record<MessageKey, string> = {
 
 const messages: Record<Locale, Record<MessageKey, string>> = { "zh-CN": zhCN, en, "zh-TW": zhTW }
 const storageKey = "laya-server-locale"
-
-export function resolveLocale(languages: readonly string[]): Locale {
-  for (const language of languages) {
-    const value = language.toLowerCase()
-    if (value.startsWith("zh-hant") || /^zh-(tw|hk|mo)(-|$)/.test(value)) return "zh-TW"
-    if (value.startsWith("zh")) return "zh-CN"
-    if (value.startsWith("en")) return "en"
-  }
-  return "en"
-}
 
 function initialLocale(): Locale {
   try {
