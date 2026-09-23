@@ -16,7 +16,7 @@ sh scripts/check-upstream.sh
 
 ## 管理员与配置
 
-在 `.env` 中设置 `LAYA_ADMIN_USERNAME` 和至少 10 字符的 `LAYA_ADMIN_PASSWORD`，服务启动时会在内存中生成 Argon2id 哈希用于登录校验。也可以不设置明文密码，改用 `.venv/bin/python scripts/hash-password.py` 生成 `LAYA_ADMIN_PASSWORD_HASH`；两者必须且只能设置一个。哈希值用单引号包住，确保 Docker Compose 按字面保留 `$`。`LAYA_PUBLIC_ORIGIN` 也必须填写；生产环境必须是 HTTPS 来源，例如 `https://console.example.com`。本地 HTTP 测试需要 `LAYA_ALLOW_INSECURE_LOCAL=1`。`.env` 已被 Git 忽略，不要提交实际密码。
+在 `.env` 中设置 `LAYA_ADMIN_USERNAME` 和至少 10 个字符的 `LAYA_ADMIN_PASSWORD`，服务启动时会在内存中生成 Argon2id 哈希用于登录校验。也可以不设置明文密码，改用 `.venv/bin/python scripts/hash-password.py` 生成 `LAYA_ADMIN_PASSWORD_HASH`；两者必须且只能设置一个。哈希值用单引号包住，确保 Docker Compose 按字面保留 `$`。`LAYA_PUBLIC_ORIGIN` 也必须填写；生产环境必须是 HTTPS 来源，例如 `https://console.example.com`。本地 HTTP 测试需要 `LAYA_ALLOW_INSECURE_LOCAL=1`。`.env` 已被 Git 忽略，不要提交实际密码。
 
 ```sh
 cp .env.example .env
@@ -60,7 +60,7 @@ Compose 只启动一个应用服务并将 `127.0.0.1:8080` 暴露给宿主机。
 
 ### 本地开发（热更新）
 
-第一次先执行 `cp .env.example .env`，将 `.env` 中的 `LAYA_ADMIN_USERNAME` 和 `LAYA_ADMIN_PASSWORD` 填好。若使用哈希配置，则将 `LAYA_ADMIN_PASSWORD` 留空并填写 `LAYA_ADMIN_PASSWORD_HASH='...'`（保留单引号）。`scripts/dev-backend.sh` 会把本地来源、SQLite 路径和模型路径设为开发值。确保上面的 Python/前端依赖与三个模型已经准备好。
+第一次先执行 `cp .env.example .env`，将 `.env` 中的 `LAYA_ADMIN_USERNAME` 和 `LAYA_ADMIN_PASSWORD` 填写好。若使用哈希配置，则将 `LAYA_ADMIN_PASSWORD` 留空并填写 `LAYA_ADMIN_PASSWORD_HASH='...'`（保留单引号）。`scripts/dev-backend.sh` 会把本地来源、SQLite 路径和模型路径设为开发值。确保上面的 Python/前端依赖与三个模型已经准备好。
 
 分别打开两个终端，在仓库根目录运行：
 
@@ -102,3 +102,5 @@ git ls-files laya/
 ```
 
 第二条命令应无输出。
+
+部署完成后，建议先访问 `GET /health/ready` 确认模型文件已就绪，再登录控制台通过 Playground 发起一次测试请求，检查实际推理和响应是否正常。
