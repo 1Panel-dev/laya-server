@@ -15,7 +15,7 @@ const zhCN = {
   administrator: "管理员",
   signOut: "退出登录",
   loginTitle: "登录 LAYA SERVER",
-  loginDescription: "管理你的推理接口与访问密钥。",
+  loginDescription: "轻松管理你的推理接口与访问密钥。",
   username: "用户名",
   password: "密码",
   signingIn: "正在登录…",
