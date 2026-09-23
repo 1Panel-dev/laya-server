@@ -7,6 +7,8 @@
 /frontend/dist
 /data
 /models
+.idea
+.env
 **/__pycache__
 **/*.pyc
 **/*.sqlite3
