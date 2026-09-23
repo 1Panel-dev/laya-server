@@ -11,6 +11,8 @@
 /backend/tests
 /frontend/node_modules
 /frontend/dist
+/.idea
+/.vscode
 /frontend/*.tsbuildinfo
 /data
 /models
