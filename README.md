@@ -72,6 +72,7 @@ sh scripts/dev-backend.sh
 ```sh
 # 终端 2：React/Vite
 cd frontend
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
