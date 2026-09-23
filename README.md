@@ -2,17 +2,15 @@
 
 <h1 align="center">LAYA SERVER</h1>
 
-<p align="center">基于 <a href="https://github.com/NandhaKishorM/laya">Laya</a> 的 System One HTTP 服务与单管理员控制台。</p>
+<p align="center">English | <a href="README.zh-CN.md">简体中文</a></p>
 
-## 功能
+## About LAYA SERVER
 
-- 通过 `POST /v1/systemone` 和 Bearer API Key 调用 Laya 推理，支持 `noul`、`choice` 和 `score` 问题。
-- 在控制台创建、撤销 API Key，使用 Playground 调试请求，并查看 token 用量与每日趋势。
-- FastAPI、React 和 SQLite 部署在同一容器中；控制台支持简体中文、英语和繁体中文。
+LAYA SERVER packages the System One inference capabilities of [upstream Laya](https://github.com/NandhaKishorM/laya) as a standalone service, making them easier to deploy and use in your applications.
 
-## 快速开始
+## Quick Start
 
-镜像发布后，安装 Docker 并运行（如需固定版本，将 `latest` 换成对应标签）：
+Once the image is published, install Docker and run the following command. Replace `latest` with a version tag to pin a release.
 
 ```sh
 docker run -d --name laya-server --init --restart unless-stopped \
@@ -23,11 +21,11 @@ docker run -d --name laya-server --init --restart unless-stopped \
   1panel/laya-server:latest
 ```
 
-将示例密码换成自己的密码，访问 `http://YOUR_SERVER_IP:8080` 登录，在 **API Keys** 页面创建密钥；完整密钥只显示一次。`/health/ready` 可用于检查模型文件。数据保存在 `laya-data` 卷中。
+Replace the sample password with your own, then sign in at `http://YOUR_SERVER_IP:8080`. Create a key on the **API Keys** page; the full key is shown only once. `/health/ready` checks the model files. Data is stored in the `laya-data` volume.
 
-`YOUR_SERVER_IP` 是服务器 IP。若通过域名访问，可在反向代理上配置 HTTPS 并转发到服务器的 8080 端口。
+`YOUR_SERVER_IP` is your server's IP address. To use a domain name, configure HTTPS on a reverse proxy and forward requests to port 8080 on the server.
 
-## 调用 API
+## Call the API
 
 ```sh
 curl -X POST http://YOUR_SERVER_IP:8080/v1/systemone \
@@ -36,8 +34,8 @@ curl -X POST http://YOUR_SERVER_IP:8080/v1/systemone \
   -d '{"state":{"message":"I was charged twice"},"questions":{"refund":{"type":"noul","instructions":"Does the customer ask for a refund?"}}}'
 ```
 
-成功响应包含 `answers`、`model` 和实际的 `usage` token 计数。发布镜像内置 multilingual 模型；`model=auto`（默认）和 `model=multilingual` 均可使用。更多请求格式见控制台 **Documentation** 页面。
+Successful responses include `answers`, `model`, and actual token counts in `usage`. The published image includes the multilingual model; `model=auto` (the default) and `model=multilingual` are available. See **Documentation** in the console for more request examples.
 
-## 许可与反馈
+## License and Feedback
 
-本项目采用 [Apache License 2.0](LICENSE) 许可证。问题和建议请提交至 [GitHub Issues](https://github.com/1Panel-dev/laya-server/issues)。
+This project is licensed under [Apache License 2.0](LICENSE). For issues and suggestions, visit [GitHub Issues](https://github.com/1Panel-dev/laya-server/issues).
