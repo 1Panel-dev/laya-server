@@ -77,7 +77,7 @@ pnpm dev
 
 Abre `http://127.0.0.1:5173` e inicia sesión. Vite redirige `/internal` y `/v1` al puerto local 8000; en producción el frontend compilado lo sigue sirviendo el mismo contenedor de FastAPI. Si solo quieres un proceso local, ejecuta primero `pnpm build` en `frontend/`, establece `LAYA_PUBLIC_ORIGIN` en `http://127.0.0.1:8000`, arranca Uvicorn y abre el puerto 8000.
 
-La consola admite chino simplificado, inglés, chino tradicional y español. Puedes cambiar el idioma tanto en la página de inicio de sesión como en la barra superior una vez dentro; en la primera visita se elige el idioma del navegador y la elección manual se guarda en el navegador actual.
+La consola admite chino simplificado, inglés y chino tradicional. Puedes cambiar el idioma tanto en la página de inicio de sesión como en la barra superior una vez dentro; en la primera visita se elige el idioma del navegador y la elección manual se guarda en el navegador actual.
 
 ## Llamar a la API
 
