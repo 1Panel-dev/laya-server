@@ -36,8 +36,8 @@ class Settings:
             raise RuntimeError("LAYA_PUBLIC_ORIGIN must be an absolute HTTP(S) origin")
         if origin.startswith("http://") and os.environ.get("LAYA_ALLOW_INSECURE_LOCAL") != "1":
             raise RuntimeError("HTTP origin requires LAYA_ALLOW_INSECURE_LOCAL=1")
-        if "/" in origin.split("://", 1)[1]:
-            raise RuntimeError("LAYA_PUBLIC_ORIGIN must not contain a path")
+        if any(char in origin.split("://", 1)[1] for char in "/?#"):
+            raise RuntimeError("LAYA_PUBLIC_ORIGIN must not contain a path, query, or fragment")
         return cls(
             username, password_hash,
             Path(os.environ.get("LAYA_DATABASE_PATH", "/data/laya.sqlite3")),

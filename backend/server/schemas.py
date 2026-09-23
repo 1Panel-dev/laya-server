@@ -37,6 +37,13 @@ class ScoreQuestion(BaseQuestion):
     type: Literal["score"]
     criteria: Annotated[list[str], Field(min_length=2, max_length=50)]
 
+    @field_validator("criteria")
+    @classmethod
+    def check_score(cls, value: list[str]) -> list[str]:
+        if any(not label.strip() for label in value) or len(set(value)) != len(value):
+            raise ValueError("score criteria labels must be nonempty and unique")
+        return value
+
 
 Question = Annotated[NoulQuestion | ChoiceQuestion | ScoreQuestion, Field(discriminator="type")]
 
