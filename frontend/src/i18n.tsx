@@ -40,7 +40,7 @@ const zhCN = {
   keyList: "密钥列表",
   keyCount: "{count} 把密钥",
   noKey: "还没有 API Key",
-  noKeyDescription: "创建一把密钥后，即可从外部程序调用推理接口。",
+  noKeyDescription: "创建一柄密钥后，即可从外部程序调用推理接口。",
   name: "名称",
   key: "密钥",
   createdAt: "创建时间",
