@@ -23,6 +23,7 @@ export class ApiError extends Error {
 
   constructor(status: number, code?: string) {
     super(code || "UNKNOWN_ERROR")
+    this.name = "ApiError"
     this.status = status
     this.code = code
   }
