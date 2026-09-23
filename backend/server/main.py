@@ -100,11 +100,13 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     ApiKeyId = Annotated[int, Depends(api_key_id)]
 
     def infer(payload: InferenceRequest, source: str, key_id: int | None) -> dict[str, Any]:
+        if settings.model_profile == "multilingual" and payload.model not in ("auto", "multilingual"):
+            raise error(422, "MODEL_NOT_AVAILABLE", "Only the multilingual model is installed")
         with router_lock:
             if "router" not in router_holder:
                 try:
                     router_holder["router"] = predictor or LayaAdapter(
-                        settings.model_dir, settings.device, settings.max_loaded_models
+                        settings.model_dir, settings.device, settings.max_loaded_models, settings.model_profile
                     )
                 except Exception:
                     logger.exception("Failed to initialize model router")
@@ -114,7 +116,8 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
             result = router_holder["router"].predict(
                 payload.state,
                 {qid: q.model_dump(exclude_none=True) for qid, q in payload.questions.items()},
-                model=None if payload.model == "auto" else payload.model,
+                model=("multilingual" if settings.model_profile == "multilingual" else None)
+                if payload.model == "auto" else payload.model,
             )
             if not isinstance(result, dict) or not isinstance(result.get("answers"), dict):
                 raise ValueError("Laya returned invalid answers")
@@ -148,7 +151,8 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
 
     @app.get("/health/ready")
     def ready() -> dict[str, str]:
-        for name in ("english", "multilingual", "typed-decisions"):
+        names = ("multilingual",) if settings.model_profile == "multilingual" else ("english", "multilingual", "typed-decisions")
+        for name in names:
             directory = settings.model_dir / name
             if (not (directory / "rl_agent_config.json").is_file()
                     or not (directory / "model.safetensors").is_file()
@@ -208,6 +212,11 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
                 "SELECT id,name,mask,created_at,revoked_at,last_used_at FROM api_keys ORDER BY id DESC"
             ).fetchall()
         return [dict(row) for row in rows]
+
+    @app.get("/internal/models")
+    def available_models(session: Session) -> dict[str, list[str]]:
+        names = ["auto", "multilingual"] if settings.model_profile == "multilingual" else ["auto", "english", "multilingual", "typed-decisions"]
+        return {"models": names}
 
     @app.post("/internal/api-keys", status_code=201)
     def create_key(payload: CreateKeyRequest, session: Session, _: WriteSession) -> dict[str, Any]:

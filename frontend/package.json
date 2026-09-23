@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.0",

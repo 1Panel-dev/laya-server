@@ -17,6 +17,7 @@ class Settings:
     device: str | None
     max_loaded_models: int
     frontend_dir: Path
+    model_profile: str = "all"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -38,6 +39,9 @@ class Settings:
             raise RuntimeError("HTTP origin requires LAYA_ALLOW_INSECURE_LOCAL=1")
         if any(char in origin.split("://", 1)[1] for char in "/?#"):
             raise RuntimeError("LAYA_PUBLIC_ORIGIN must not contain a path, query, or fragment")
+        model_profile = os.environ.get("LAYA_MODEL_PROFILE", "all")
+        if model_profile not in ("all", "multilingual"):
+            raise RuntimeError("LAYA_MODEL_PROFILE must be all or multilingual")
         return cls(
             username, password_hash,
             Path(os.environ.get("LAYA_DATABASE_PATH", "/data/laya.sqlite3")),
@@ -47,4 +51,5 @@ class Settings:
             os.environ.get("LAYA_DEVICE") or None,
             int(os.environ.get("LAYA_MAX_LOADED_MODELS", "1")),
             Path(os.environ.get("LAYA_FRONTEND_DIR", "/app/frontend/dist")),
+            model_profile,
         )

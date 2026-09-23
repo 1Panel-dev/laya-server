@@ -15,10 +15,19 @@ RUN test "$(git -C /upstream rev-parse HEAD)" = "$LAYA_UPSTREAM_SHA" && \
     test -z "$(git -C /upstream status --porcelain)" || \
     (echo 'Laya checkout must match the pinned SHA and be clean' >&2; exit 1)
 
+FROM python:3.12-slim AS model-download
+ENV LAYA_MODEL_DIR=/opt/model-download HF_HOME=/opt/hf-cache
+WORKDIR /app
+RUN pip install --no-cache-dir huggingface-hub==0.29.3
+COPY scripts/download-models.py /app/scripts/download-models.py
+RUN python /app/scripts/download-models.py --model multilingual && \
+    test -s /opt/model-download/multilingual/model.safetensors
+
 FROM python:3.12-slim AS app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
-    LAYA_DATABASE_PATH=/data/laya.sqlite3 LAYA_MODEL_DIR=/models \
-    LAYA_FRONTEND_DIR=/app/frontend/dist HF_HOME=/models/.cache
+    LAYA_DATABASE_PATH=/data/laya.sqlite3 LAYA_MODEL_DIR=/opt/models \
+    LAYA_MODEL_PROFILE=multilingual LAYA_FRONTEND_DIR=/app/frontend/dist \
+    HF_HOME=/data/hf-cache HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 WORKDIR /app
 RUN pip install --no-cache-dir torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir transformers==4.48.3 safetensors==0.5.3 huggingface-hub==0.29.3 numpy==1.26.4
@@ -27,9 +36,10 @@ COPY --from=upstream-check /upstream/laya/ /opt/laya/laya/
 RUN pip install --no-cache-dir --no-deps /opt/laya
 COPY backend/ /app/backend/
 RUN pip install --no-cache-dir /app/backend
-COPY scripts/download-models.py /app/scripts/download-models.py
+COPY --from=model-download /opt/model-download/multilingual/ /opt/models/multilingual/
+COPY scripts/smoke-image-model.py /app/scripts/smoke-image-model.py
 COPY --from=frontend-build /app/frontend/dist/ /app/frontend/dist/
-RUN mkdir -p /data /models
+RUN mkdir -p /data && python /app/scripts/smoke-image-model.py
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/live', timeout=3)" || exit 1
 CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--proxy-headers"]
