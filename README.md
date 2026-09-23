@@ -1,12 +1,10 @@
+English | <a href="README.zh-CN.md">简体中文</a>
+
 <p align="center"><img src="frontend/public/laya-server-logo-black.png" alt="LAYA SERVER" width="120" /></p>
 
 <h1 align="center">LAYA SERVER</h1>
 
-<p align="center">English | <a href="README.zh-CN.md">简体中文</a></p>
-
-## About LAYA SERVER
-
-LAYA SERVER packages the System One inference capabilities of [upstream Laya](https://github.com/NandhaKishorM/laya) as a standalone service, making them easier to deploy and use in your applications.
+LAYA SERVER is a self-hosted API and web interface for Laya's structured decision models, compatible with the TypeSafe Jev API format. It packages the System One inference capabilities of [upstream Laya](https://github.com/NandhaKishorM/laya) as a standalone service, making them easier to deploy and use in your applications.
 
 ## Quick Start
 
