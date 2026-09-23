@@ -66,7 +66,7 @@ const zhCN = {
   outputTokens: "输出 Tokens",
   inputOutputSummary: "输入 {input} / 输出 {output} tokens",
   playgroundSource: "控制台调试",
-  tokenTooltip: "{day}：{count} tokens",
+  tokenTooltip: "{day} - tokens: {count}",
   requestTooltip: "{day} — Requests: {count}",
   playgroundDescription: "使用管理员会话调试推理请求，用量计入控制台调试。",
   requestJson: "请求 JSON",
