@@ -208,7 +208,7 @@ const en: Record<MessageKey, string> = {
   inputOutputSummary: "Input {input} / Output {output} tokens",
   playgroundSource: "Console Playground",
   tokenTooltip: "{day}: {count} tokens",
-  requestTooltip: "{day}: {count} requests",
+  requestTooltip: "{day} — Requests: {count}",
   playgroundDescription: "Test inference with your administrator session. Usage is counted under Console Playground.",
   requestJson: "Request JSON",
   englishExample: "English example",
