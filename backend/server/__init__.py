@@ -1,0 +1,1 @@
+"""Laya server application."""
