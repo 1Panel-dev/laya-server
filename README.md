@@ -16,7 +16,7 @@ sh scripts/check-upstream.sh
 
 ## 管理员与配置
 
-在 `.env` 中设置 `LAYA_ADMIN_USERNAME` 和至少 10 字符的 `LAYA_ADMIN_PASSWORD`，服务启动时会在内存中生成 Argon2id 哈希用于登录校验。也可以不设置明文密码，改用 `.venv/bin/python scripts/hash-password.py` 生成 `LAYA_ADMIN_PASSWORD_HASH`；两者必须且只能设置一个。哈希值用单引号包住，确保 Docker Compose 按字面保留 `$`。`LAYA_PUBLIC_ORIGIN` 也必须填写；生产环境必须是 HTTPS 来源，例如 `https://console.example.com`。本地 HTTP 测试需要 `LAYA_ALLOW_INSECURE_LOCAL=1`。`.env` 已被 Git 忽略，不要提交实际密码。
+在 `.env` 中设置 `LAYA_ADMIN_USERNAME` 和至少 10 个字符的 `LAYA_ADMIN_PASSWORD`，服务启动时会在内存中生成 Argon2id 哈希用于登录校验。也可以不设置明文密码，改用 `.venv/bin/python scripts/hash-password.py` 生成 `LAYA_ADMIN_PASSWORD_HASH`；两者必须且只能设置一个。哈希值用单引号包住，确保 Docker Compose 按字面保留 `$`。`LAYA_PUBLIC_ORIGIN` 也必须填写；生产环境必须是 HTTPS 来源，例如 `https://console.example.com`。本地 HTTP 测试需要 `LAYA_ALLOW_INSECURE_LOCAL=1`。`.env` 已被 Git 忽略，不要提交实际密码。
 
 ```sh
 cp .env.example .env
