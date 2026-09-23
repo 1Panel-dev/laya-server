@@ -52,6 +52,12 @@ CLAUDE.md
 /.claude/
 GEMINI.md
 
+# macOS
+.DS_Store
+
 # Editor/IDE
-# .idea/
+.idea/
 # .vscode/
+
+# Secret file
+.secret
