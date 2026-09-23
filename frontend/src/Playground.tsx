@@ -34,8 +34,10 @@ class DraftError extends Error {
   constructor(readonly key: MessageKey, readonly values?: Record<string, string | number>) { super(key) }
 }
 
+let nextQuestionUid = 0
+
 function makeQuestion(type: QuestionType = "noul"): Question {
-  return { uid: crypto.randomUUID(), id: "", type, instructions: "", choices: [{ label: "", description: "" }, { label: "", description: "" }], levels: ["", ""] }
+  return { uid: String(++nextQuestionUid), id: "", type, instructions: "", choices: [{ label: "", description: "" }, { label: "", description: "" }], levels: ["", ""] }
 }
 
 function parseDraft(value: string): Draft {
