@@ -28,7 +28,8 @@ class ChoiceQuestion(BaseQuestion):
     @classmethod
     def check_choice(cls, value: dict[str, object] | list[str]) -> dict[str, object] | list[str]:
         labels = list(value)
-        if any(not label.strip() for label in labels) or len(set(labels)) != len(labels):
+        normalized = [label.strip() for label in labels]
+        if any(not label for label in normalized) or len(set(normalized)) != len(normalized):
             raise ValueError("choice labels must be nonempty and unique")
         return value
 
@@ -36,6 +37,14 @@ class ChoiceQuestion(BaseQuestion):
 class ScoreQuestion(BaseQuestion):
     type: Literal["score"]
     criteria: Annotated[list[str], Field(min_length=2, max_length=50)]
+
+    @field_validator("criteria")
+    @classmethod
+    def check_score(cls, value: list[str]) -> list[str]:
+        normalized = [label.strip() for label in value]
+        if any(not label for label in normalized) or len(set(normalized)) != len(normalized):
+            raise ValueError("score criteria labels must be nonempty and unique")
+        return value
 
 
 Question = Annotated[NoulQuestion | ChoiceQuestion | ScoreQuestion, Field(discriminator="type")]

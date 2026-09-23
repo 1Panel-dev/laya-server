@@ -42,7 +42,7 @@ LAYA_MODEL_DIR=models .venv/bin/python scripts/download-models.py --model typed-
 LAYA_MODEL_DIR=models .venv/bin/python scripts/smoke-real-model.py
 ```
 
-模型下载与运行依赖上游的 PyTorch、Transformers、Safetensors、Hugging Face Hub 和 NumPy。
+模型下载与运行均依赖上游的 PyTorch、Transformers、Safetensors、Hugging Face Hub 和 NumPy。
 
 ## 启动
 

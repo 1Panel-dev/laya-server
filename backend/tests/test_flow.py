@@ -110,6 +110,18 @@ def test_login_key_inference_usage_revoke_logout(tmp_path):
     missing = client.post("/v1/systemone", json={"questions": PAYLOAD["questions"]}, headers={"Authorization": f"Bearer {key}"})
     assert missing.status_code == 422
     assert missing.json()["detail"]["errors"][0]["loc"] == ["body", "state"]
+    invalid_score = client.post(
+        "/v1/systemone",
+        json={
+            **PAYLOAD,
+            "questions": {
+                "score": {"type": "score", "instructions": "How urgent?", "criteria": ["same", "same"]},
+            },
+        },
+        headers={"Authorization": f"Bearer {key}"},
+    )
+    assert invalid_score.status_code == 422
+    assert invalid_score.json()["detail"]["code"] == "VALIDATION_ERROR"
     assert fake.calls == 0
     prediction = client.post("/v1/systemone", json=PAYLOAD, headers={"Authorization": f"Bearer {key}"})
     assert prediction.status_code == 200, prediction.text
@@ -167,6 +179,44 @@ def test_rate_limit_expiry_and_model_failure(tmp_path):
     assert client.get("/internal/api-keys").status_code == 401
 
 
+@pytest.mark.parametrize("keep_cookies", [True, False], ids=["stale-cookies", "expired-cookies"])
+def test_login_after_session_expiry(tmp_path, keep_cookies):
+    db_path = tmp_path / "db.sqlite3"
+    settings = Settings("admin", PasswordHasher().hash("test-password"), db_path,
+                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
+    client = TestClient(create_app(settings, FakePredictor()))
+    credentials = {"username": "admin", "password": "test-password"}
+    origin = {"Origin": "http://testserver"}
+    assert client.post("/internal/auth/login", json=credentials, headers=origin).status_code == 200
+    old_session = client.cookies["laya_session"]
+    old_csrf = client.get("/internal/auth/session").json()["csrf_token"]
+
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("UPDATE sessions SET expires_at='2000-01-01T00:00:00+00:00'")
+    if not keep_cookies:
+        client.cookies.clear()
+
+    assert client.get("/internal/auth/session").status_code == 401
+    assert client.get("/internal/api-keys").status_code == 401
+    old_headers = {**origin, "X-CSRF-Token": old_csrf}
+    assert client.post("/internal/api-keys", json={"name": "expired"}, headers=old_headers).status_code == 401
+    assert client.post("/internal/auth/logout", headers=old_headers).status_code == 401
+
+    # Signing in does not require a successful logout or a valid old CSRF token.
+    assert client.post("/internal/auth/login", json=credentials, headers=origin).status_code == 200
+    assert client.cookies["laya_session"] != old_session
+    session = client.get("/internal/auth/session")
+    assert session.status_code == 200
+    new_csrf = session.json()["csrf_token"]
+    assert new_csrf and new_csrf != old_csrf
+    assert client.get("/internal/api-keys").status_code == 200
+    assert client.post("/internal/api-keys", json={"name": "stale-csrf"}, headers=old_headers).status_code == 403
+    created = client.post("/internal/api-keys", json={"name": "after-login"},
+                          headers={**origin, "X-CSRF-Token": new_csrf})
+    assert created.status_code == 201
+    assert [key["name"] for key in client.get("/internal/api-keys").json()] == ["after-login"]
+
+
 def test_concurrent_inference_requests_are_not_rejected(tmp_path):
     class ConcurrentPredictor(FakePredictor):
         def __init__(self):
@@ -202,3 +252,29 @@ def test_concurrent_inference_requests_are_not_rejected(tmp_path):
         assert dict(connection.execute("SELECT source, COUNT(*) FROM usage_events GROUP BY source").fetchall()) == {
             "api_key": 2, "playground": 1,
         }
+
+
+def test_question_criteria_validation():
+    from server.schemas import ChoiceQuestion, ScoreQuestion
+    from pydantic import ValidationError
+
+    valid_score = ScoreQuestion(instructions="Rate", type="score", criteria=["low", "medium", "high"])
+    assert valid_score.criteria == ["low", "medium", "high"]
+
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", "low"])
+
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", "   "])
+
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", " low "])
+
+    ChoiceQuestion(instructions="Choose", type="choice", criteria=["option_a", "option_b"])
+    ChoiceQuestion(instructions="Choose", type="choice", criteria={"option_a": "desc A", "option_b": "desc B"})
+
+    with pytest.raises(ValidationError, match="choice labels must be nonempty and unique"):
+        ChoiceQuestion(instructions="Choose", type="choice", criteria=["opt", "opt"])
+
+    with pytest.raises(ValidationError, match="choice labels must be nonempty and unique"):
+        ChoiceQuestion(instructions="Choose", type="choice", criteria=["opt", "  "])

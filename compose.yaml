@@ -10,6 +10,7 @@ services:
       - laya-data:/data
       - laya-models:/models
     restart: unless-stopped
+    init: true
 
 volumes:
   laya-data:
