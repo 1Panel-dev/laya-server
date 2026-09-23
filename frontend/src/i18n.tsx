@@ -219,7 +219,7 @@ const zhTW: Record<MessageKey, string> = {
   viewDocsDescription: "了解請求與回應格式",
   keysDescription: "為外部程式建立及管理存取金鑰。",
   createKey: "建立金鑰",
-  saveKeyTitle: "請立即保存這把金鑰",
+  saveKeyTitle: "請立即儲存這把金鑰",
   saveKeyDescription: "關閉提示後將無法再次查看完整金鑰。",
   copy: "複製",
   closeKeyNotice: "關閉金鑰提示",
