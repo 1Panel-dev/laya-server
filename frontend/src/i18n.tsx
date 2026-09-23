@@ -37,7 +37,7 @@ const zhCN = {
   saveKeyDescription: "关闭后将无法再次查看完整密钥。",
   copy: "复制",
   closeKeyNotice: "关闭密钥提示",
-  keyList: "密钥列表",
+  keyList: "密钥的列表",
   keyCount: "{count} 把密钥",
   noKey: "还没有 API Key",
   noKeyDescription: "创建一柄密钥后，即可从外部程序调用推理接口。",
