@@ -81,11 +81,11 @@ La consola admite chino simplificado, inglés y chino tradicional. Puedes cambia
 
 ## Llamar a la API
 
-Crea una clave en la página **API Keys** tras iniciar sesión en la consola. La clave completa solo se muestra una vez, en la respuesta de creación.
+Crea una clave en la página **API Keys** tras iniciar sesión en la consola. La clave completa solo se muestra una vez, en la respuesta de creación. Sustituye `TU_CLAVE_API` en el siguiente ejemplo por esa clave.
 
 ```sh
 curl -X POST https://console.example.com/v1/systemone \
-  -H 'Authorization: Bearer ***' \
+  -H 'Authorization: Bearer TU_CLAVE_API' \
   -H 'Content-Type: application/json' \
   -d '{"state":{"message":"I was charged twice"},"questions":{"refund":{"type":"noul","instructions":"Does the customer ask for a refund?"}}}'
 ```
