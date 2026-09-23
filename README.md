@@ -16,21 +16,21 @@
 
 ```sh
 docker run -d --name laya-server --init --restart unless-stopped \
-  -p 127.0.0.1:8080:8080 \
+  -p 8080:8080 \
   -v laya-data:/data \
   -e LAYA_ADMIN_USERNAME=admin \
-  -e LAYA_ADMIN_PASSWORD='replace-with-a-password-of-at-least-10-characters' \
+  -e LAYA_ADMIN_PASSWORD='change-this-admin-password' \
   1panel/laya-server:latest
 ```
 
-将示例密码换成至少 10 个字符的密码。打开 `http://127.0.0.1:8080` 登录，在 **API Keys** 页面创建密钥；完整密钥只显示一次。`/health/ready` 可用于检查模型文件。数据保存在 `laya-data` 卷中。
+将示例密码换成自己的密码，访问 `http://YOUR_SERVER_IP:8080` 登录，在 **API Keys** 页面创建密钥；完整密钥只显示一次。`/health/ready` 可用于检查模型文件。数据保存在 `laya-data` 卷中。
 
-容器端口只绑定本机。如需公网访问，可用现有反向代理转发到 `127.0.0.1:8080`，并在公网入口配置 HTTPS。
+`YOUR_SERVER_IP` 是服务器 IP。若通过域名访问，可在反向代理上配置 HTTPS 并转发到服务器的 8080 端口。
 
 ## 调用 API
 
 ```sh
-curl -X POST http://127.0.0.1:8080/v1/systemone \
+curl -X POST http://YOUR_SERVER_IP:8080/v1/systemone \
   -H 'Authorization: Bearer YOUR_API_KEY' \
   -H 'Content-Type: application/json' \
   -d '{"state":{"message":"I was charged twice"},"questions":{"refund":{"type":"noul","instructions":"Does the customer ask for a refund?"}}}'
