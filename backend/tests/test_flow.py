@@ -229,6 +229,9 @@ def test_question_criteria_validation():
     with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
         ScoreQuestion(instructions="Rate", type="score", criteria=["low", "   "])
 
+    with pytest.raises(ValidationError, match="score criteria labels must be nonempty and unique"):
+        ScoreQuestion(instructions="Rate", type="score", criteria=["low", " low "])
+
     ChoiceQuestion(instructions="Choose", type="choice", criteria=["option_a", "option_b"])
     ChoiceQuestion(instructions="Choose", type="choice", criteria={"option_a": "desc A", "option_b": "desc B"})
 
@@ -237,4 +240,3 @@ def test_question_criteria_validation():
 
     with pytest.raises(ValidationError, match="choice labels must be nonempty and unique"):
         ChoiceQuestion(instructions="Choose", type="choice", criteria=["opt", "  "])
-

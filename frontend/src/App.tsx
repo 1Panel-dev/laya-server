@@ -3,6 +3,7 @@ import { Activity, BookOpen, ChartNoAxesColumn, CircleHelp, Copy, KeyRound, Lang
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiErrorMessage, useI18n, type Locale, type MessageKey, type Translate } from "./i18n"
+import { Playground, sampleRequest } from "./Playground"
 
 type ApiKey = { id: number; name: string; mask: string; created_at: string; revoked_at: string | null; last_used_at: string | null }
 type Usage = { totals: { requests: number; input_tokens: number; output_tokens: number }; daily: { day: string; requests: number; input_tokens: number; output_tokens: number }[]; sources: { source: string; key_id: number | null; requests: number; input_tokens: number; output_tokens: number }[] }
@@ -115,7 +116,7 @@ function App() {
     </aside>
     <div className="main">
       <header className="topbar"><button className="menu-button" aria-label={t("openNavigation")} onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>{title}</span><div className="topbar-controls"><span className="topbar-note">LAYA SERVER</span><LanguagePicker /></div></header>
-      <main className="content">{page === "home" ? <Home setPage={setPage} /> : page === "keys" ? <Keys csrf={session.csrf_token} /> : page === "usage" ? <UsagePage /> : page === "playground" ? <Playground csrf={session.csrf_token} /> : <Docs />}</main>
+      <main className="content">{page === "home" ? <Home setPage={setPage} /> : page === "keys" ? <Keys csrf={session.csrf_token} /> : page === "usage" ? <UsagePage /> : page === "playground" ? <Playground run={body => api("/internal/playground", { method: "POST", body }, session.csrf_token)} /> : <Docs />}</main>
     </div>
     {mobileNav ? <button className="nav-backdrop" aria-label={t("closeNavigation")} onClick={() => setMobileNav(false)} /> : null}
   </div>
@@ -205,40 +206,6 @@ function UsagePage() {
     <section className="chart-section"><div className="chart-head"><h2>{t("requests")}</h2><strong>{number(totals?.requests || 0)}</strong></div><div className="bars">{daily.length ? daily.map(day => <div className="bar-column" key={day.day} title={t("requestTooltip", { day: day.day, count: number(day.requests) })}><div className="bar" style={{ height: Math.max(2, (day.requests / maxRequests) * 100) + "%" }} /><span>{day.day.slice(5)}</span></div>) : <div className="chart-empty">{t("noRequests")}</div>}</div></section>
     <div className="section-head"><h2>{t("sources")}</h2><span>{t("inputOutputSummary", { input: number(totals?.input_tokens || 0), output: number(totals?.output_tokens || 0) })}</span></div>
     <div className="table-wrap"><table><thead><tr><th>{t("sources")}</th><th>{t("requests")}</th><th>{t("inputTokens")}</th><th>{t("outputTokens")}</th></tr></thead><tbody>{usage?.sources.map(source => <tr key={source.source + "-" + source.key_id}><td className="strong">{source.source === "playground" ? t("playgroundSource") : "API Key #" + source.key_id}</td><td>{number(source.requests)}</td><td>{number(source.input_tokens)}</td><td>{number(source.output_tokens)}</td></tr>)}</tbody></table></div>
-  </>
-}
-
-const sampleRequest = { state: { message: "I was charged twice and need a refund today." }, questions: { intent: { type: "choice", instructions: "What does the customer want?", criteria: { refund: "money returned", technical_help: "a technical problem" } }, urgent: { type: "noul", instructions: "Does the customer express urgency?" }, frustration: { type: "score", instructions: "How frustrated is the customer?", criteria: ["calm", "concerned", "very angry"] } }, model: "auto" }
-const chineseSampleRequest = { ...sampleRequest, state: { message: "我的账户被重复扣费了，请尽快退款。" }, model: "multilingual" }
-const traditionalSampleRequest = { ...sampleRequest, state: { message: "我的帳戶被重複扣款了，請盡快退款。" }, model: "multilingual" }
-
-function Playground({ csrf }: { csrf: string }) {
-  const { t, locale } = useI18n()
-  const [body, setBody] = useState(() => JSON.stringify(sampleRequest, null, 2))
-  const [result, setResult] = useState("")
-  const [resultError, setResultError] = useState<unknown>(null)
-  const [busy, setBusy] = useState(false)
-
-  async function submit() {
-    setBusy(true)
-    setResultError(null)
-    try {
-      const data = await api("/internal/playground", { method: "POST", body }, csrf)
-      setResult(JSON.stringify(data, null, 2))
-    } catch (cause) {
-      setResult("")
-      setResultError(cause)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return <>
-    <PageTitle title={t("playground")} description={t("playgroundDescription")} />
-    <div className="playground-grid">
-      <section><div className="section-head"><h2>{t("requestJson")}</h2><div className="sample-actions"><button onClick={() => setBody(JSON.stringify(sampleRequest, null, 2))}>{t("englishExample")}</button><button onClick={() => setBody(JSON.stringify(locale === "zh-TW" ? traditionalSampleRequest : chineseSampleRequest, null, 2))}>{t("chineseExample")}</button></div></div><textarea aria-label={t("requestJson")} value={body} onChange={event => setBody(event.target.value)} spellCheck={false} /><Button onClick={submit} disabled={busy}><Send size={16} /> {busy ? t("runningInference") : t("runInference")}</Button></section>
-      <section><div className="section-head"><h2>{t("response")}</h2></div><pre className="result">{resultError ? displayError(resultError, t) : result || t("noResult")}</pre></section>
-    </div>
   </>
 }
 
