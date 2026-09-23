@@ -31,9 +31,10 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}, csrf?: string): Promise<T> {
   const requestSessionVersion = sessionVersion
   const headers = new Headers(options.headers)
+  const method = options.method?.toUpperCase()
   if (options.body) headers.set("Content-Type", "application/json")
-  if (options.method && options.method !== "GET") headers.set("X-CSRF-Token", csrf || "")
-  const response = await fetch(path, { credentials: "same-origin", ...options, headers })
+  if (method && !["GET", "HEAD"].includes(method)) headers.set("X-CSRF-Token", csrf || "")
+  const response = await fetch(path, { credentials: "same-origin", ...options, method, headers })
   if (!response.ok) {
     const unauthenticated = response.status === 401 && path.startsWith("/internal/") && path !== "/internal/auth/login"
     if (unauthenticated && requestSessionVersion === sessionVersion) setSession(null)
