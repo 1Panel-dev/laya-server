@@ -32,8 +32,12 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}, csrf?: string): Promise<T> {
   const requestSessionVersion = sessionVersion
   const headers = new Headers(options.headers)
+  const body = options.body
   const method = options.method?.toUpperCase()
-  if (options.body) headers.set("Content-Type", "application/json")
+  if (typeof body === "string" && !headers.has("Content-Type")) {
+    const payload = body.trim()
+    if (payload.startsWith("{") || payload.startsWith("[")) headers.set("Content-Type", "application/json")
+  }
   if (method && !["GET", "HEAD"].includes(method)) headers.set("X-CSRF-Token", csrf || "")
   const response = await fetch(path, { credentials: "same-origin", ...options, method, headers })
   if (!response.ok) {
