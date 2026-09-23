@@ -33,7 +33,9 @@ function useSession() {
     const controller = new AbortController()
     api<Session>("/internal/auth/session", { signal: controller.signal })
       .then(value => { if (!controller.signal.aborted) setSession(value) })
-      .catch(() => { if (!controller.signal.aborted) setSession(null) })
+      .catch(cause => {
+        if (!controller.signal.aborted && cause instanceof ApiError && cause.status === 401) setSession(null)
+      })
       .finally(() => { if (!controller.signal.aborted) setReady(true) })
     return () => controller.abort()
   }, [])
