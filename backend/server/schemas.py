@@ -49,8 +49,8 @@ class InferenceRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: Annotated[str, StringConstraints(max_length=80)]
+    password: Annotated[str, StringConstraints(max_length=256)]
 
 
 class CreateKeyRequest(BaseModel):
