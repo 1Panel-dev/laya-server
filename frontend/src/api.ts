@@ -40,5 +40,6 @@ export async function api<T>(path: string, options: RequestInit = {}, csrf?: str
     const data = await response.json().catch(() => null)
     throw new ApiError(response.status, data?.detail?.code || (unauthenticated ? "UNAUTHENTICATED" : undefined))
   }
-  return response.json() as Promise<T>
+  const body = await response.text()
+  return (body ? JSON.parse(body) : undefined) as T
 }
