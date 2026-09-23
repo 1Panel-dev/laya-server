@@ -22,6 +22,7 @@ profile.cov
 
 # env file
 .env
+.env.local
 
 # Local upstream Laya checkout. Include its pinned source in build artifacts,
 # but never commit it to this repository.

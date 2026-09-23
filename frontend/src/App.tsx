@@ -1,14 +1,14 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react"
 import { Activity, BookOpen, ChartNoAxesColumn, CircleHelp, Copy, KeyRound, Languages, LogOut, Menu, Plus, Send, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiErrorMessage, useI18n, type Locale, type MessageKey, type Translate } from "./i18n"
 import { Playground, sampleRequest, type Model } from "./Playground"
+import { api, ApiError, getSession, setSession, subscribeSession, type Session } from "./api"
 
 type ApiKey = { id: number; name: string; mask: string; created_at: string; revoked_at: string | null; last_used_at: string | null }
 type Usage = { totals: { requests: number; input_tokens: number; output_tokens: number }; daily: { day: string; requests: number; input_tokens: number; output_tokens: number }[]; sources: { source: string; key_id: number | null; requests: number; input_tokens: number; output_tokens: number }[] }
 type Page = "home" | "keys" | "usage" | "playground" | "docs"
-type Session = { username: string; csrf_token: string }
 
 const navigation: { id: Page; label: MessageKey; icon: typeof Activity }[] = [
   { id: "home", label: "home", icon: Activity },
@@ -18,22 +18,8 @@ const navigation: { id: Page; label: MessageKey; icon: typeof Activity }[] = [
   { id: "docs", label: "documentation", icon: BookOpen },
 ]
 
-class ApiError extends Error {
-  constructor(readonly code?: string) { super(code || "UNKNOWN_ERROR") }
-}
-
 function displayError(error: unknown, t: Translate) {
   return apiErrorMessage(error instanceof ApiError ? error.code : undefined, t)
-}
-
-async function api<T>(path: string, options: RequestInit = {}, csrf?: string): Promise<T> {
-  const headers = new Headers(options.headers)
-  if (options.body) headers.set("Content-Type", "application/json")
-  if (options.method && options.method !== "GET") headers.set("X-CSRF-Token", csrf || "")
-  const response = await fetch(path, { credentials: "same-origin", ...options, headers })
-  const data = await response.json()
-  if (!response.ok) throw new ApiError(data?.detail?.code)
-  return data as T
 }
 
 function loadAvailableModels(): Promise<{ models: Model[] }> {
@@ -41,10 +27,15 @@ function loadAvailableModels(): Promise<{ models: Model[] }> {
 }
 
 function useSession() {
-  const [session, setSession] = useState<Session | null>(null)
+  const session = useSyncExternalStore(subscribeSession, getSession)
   const [ready, setReady] = useState(false)
   useEffect(() => {
-    api<Session>("/internal/auth/session").then(setSession).catch(() => setSession(null)).finally(() => setReady(true))
+    const controller = new AbortController()
+    api<Session>("/internal/auth/session", { signal: controller.signal })
+      .then(value => { if (!controller.signal.aborted) setSession(value) })
+      .catch(() => { if (!controller.signal.aborted) setSession(null) })
+      .finally(() => { if (!controller.signal.aborted) setReady(true) })
+    return () => controller.abort()
   }, [])
   return { session, setSession, ready }
 }
@@ -105,8 +96,9 @@ function App() {
   async function logout() {
     try {
       await api("/internal/auth/logout", { method: "POST" }, session!.csrf_token)
-      setSession(null)
+      if (getSession() === session) setSession(null)
     } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) return
       alert(displayError(cause, t))
     }
   }

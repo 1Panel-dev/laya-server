@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 with TemporaryDirectory() as temporary:
     password = "smoke-" + secrets.token_urlsafe(24)
     os.environ["LAYA_ADMIN_USERNAME"] = "smoke-admin"
+    os.environ.pop("LAYA_ADMIN_PASSWORD", None)
     os.environ["LAYA_ADMIN_PASSWORD_HASH"] = PasswordHasher().hash(password)
     os.environ["LAYA_PUBLIC_ORIGIN"] = "http://testserver"
     os.environ["LAYA_ALLOW_INSECURE_LOCAL"] = "1"
