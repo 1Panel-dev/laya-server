@@ -1,11 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Code2, ListFilter, Plus, Send, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiErrorMessage, useI18n, type MessageKey, type Translate } from "./i18n"
 
 type QuestionType = "noul" | "score" | "choice"
-type Model = "auto" | "english" | "multilingual" | "typed-decisions"
+export type Model = "auto" | "english" | "multilingual" | "typed-decisions"
 type Question = {
   uid: string
   id: string
@@ -105,7 +105,7 @@ function errorText(error: unknown, t: Translate): string {
   return apiErrorMessage(undefined, t)
 }
 
-export function Playground({ run }: { run: (body: string) => Promise<unknown> }) {
+export function Playground({ run, loadModels }: { run: (body: string) => Promise<unknown>; loadModels: () => Promise<{ models: Model[] }> }) {
   const { t, locale } = useI18n()
   const [draft, setDraft] = useState<Draft>(() => parseDraft(JSON.stringify(sampleRequest)))
   const [editor, setEditor] = useState<"form" | "json">("form")
@@ -113,6 +113,15 @@ export function Playground({ run }: { run: (body: string) => Promise<unknown> })
   const [result, setResult] = useState<Prediction | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [availableModels, setAvailableModels] = useState<Model[]>(["auto"])
+
+  useEffect(() => {
+    let active = true
+    loadModels().then(({ models: installed }) => {
+      if (active) setAvailableModels(installed.filter(model => models.includes(model)))
+    }).catch(() => {})
+    return () => { active = false }
+  }, [loadModels])
 
   function loadExample(example: unknown) {
     const value = JSON.stringify(example, null, 2)
@@ -126,7 +135,11 @@ export function Playground({ run }: { run: (body: string) => Promise<unknown> })
     if (next === editor) return
     try {
       if (next === "json") setRaw(buildRequest(draft))
-      else setDraft(parseDraft(raw))
+      else {
+        const parsed = parseDraft(raw)
+        if (!availableModels.includes(parsed.model)) throw new DraftError("errorModelNotAvailable")
+        setDraft(parsed)
+      }
       setEditor(next)
       setError(null)
     } catch (cause) { setError(errorText(cause, t)) }
@@ -197,7 +210,7 @@ export function Playground({ run }: { run: (body: string) => Promise<unknown> })
             </div>)}</div>
             <button type="button" className="playground-add-question" disabled={draft.questions.length >= 50} onClick={() => changeDraft(previous => ({ ...previous, questions: [...previous.questions, makeQuestion()] }))}><Plus size={16} />{t("playgroundAddQuestion")}</button>
           </section>
-          <section className="playground-section playground-model"><label htmlFor="playground-model">{t("playgroundModel")}</label><select id="playground-model" value={draft.model} onChange={event => changeDraft(previous => ({ ...previous, model: event.target.value as Model }))}>{models.map(model => <option key={model} value={model}>{model}</option>)}</select><p>{t("playgroundModelHint")}</p></section>
+          <section className="playground-section playground-model"><label htmlFor="playground-model">{t("playgroundModel")}</label><select id="playground-model" value={draft.model} onChange={event => changeDraft(previous => ({ ...previous, model: event.target.value as Model }))}>{availableModels.map(model => <option key={model} value={model}>{model}</option>)}</select><p>{t("playgroundModelHint")}</p></section>
         </>}
         <div className="playground-submit">{error ? <p className="form-error" role="alert">{error}</p> : null}<Button type="button" onClick={submit} disabled={busy}><Send size={16} />{busy ? t("runningInference") : t("runInference")}</Button></div>
       </div>

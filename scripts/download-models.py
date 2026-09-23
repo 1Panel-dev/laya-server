@@ -1,4 +1,4 @@
-"""Populate the persistent model volume from one pinned Hugging Face snapshot."""
+"""Download selected model files from one pinned Hugging Face snapshot."""
 
 import argparse
 import os

@@ -3,7 +3,7 @@ import { Activity, BookOpen, ChartNoAxesColumn, CircleHelp, Copy, KeyRound, Lang
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiErrorMessage, useI18n, type Locale, type MessageKey, type Translate } from "./i18n"
-import { Playground, sampleRequest } from "./Playground"
+import { Playground, sampleRequest, type Model } from "./Playground"
 import { api, ApiError, getSession, setSession, subscribeSession, type Session } from "./api"
 
 type ApiKey = { id: number; name: string; mask: string; created_at: string; revoked_at: string | null; last_used_at: string | null }
@@ -20,6 +20,10 @@ const navigation: { id: Page; label: MessageKey; icon: typeof Activity }[] = [
 
 function displayError(error: unknown, t: Translate) {
   return apiErrorMessage(error instanceof ApiError ? error.code : undefined, t)
+}
+
+function loadAvailableModels(): Promise<{ models: Model[] }> {
+  return api("/internal/models")
 }
 
 function useSession() {
@@ -108,7 +112,7 @@ function App() {
     </aside>
     <div className="main">
       <header className="topbar"><button className="menu-button" aria-label={t("openNavigation")} onClick={() => setMobileNav(true)}><Menu size={20} /></button><span>{title}</span><div className="topbar-controls"><span className="topbar-note">LAYA SERVER</span><LanguagePicker /></div></header>
-      <main className="content">{page === "home" ? <Home setPage={setPage} /> : page === "keys" ? <Keys csrf={session.csrf_token} /> : page === "usage" ? <UsagePage /> : page === "playground" ? <Playground run={body => api("/internal/playground", { method: "POST", body }, session.csrf_token)} /> : <Docs />}</main>
+      <main className="content">{page === "home" ? <Home setPage={setPage} /> : page === "keys" ? <Keys csrf={session.csrf_token} /> : page === "usage" ? <UsagePage /> : page === "playground" ? <Playground run={body => api("/internal/playground", { method: "POST", body }, session.csrf_token)} loadModels={loadAvailableModels} /> : <Docs />}</main>
     </div>
     {mobileNav ? <button className="nav-backdrop" aria-label={t("closeNavigation")} onClick={() => setMobileNav(false)} /> : null}
   </div>

@@ -27,9 +27,9 @@ python3.12 -m venv .venv
 
 ## 模型文件
 
-模型权重不随仓库和镜像分发。`scripts/download-models.py` 将 Hugging Face 仓库固定在提交 `1c5edc17a7acd8701df6fc341c0d179f1c62c982`，把三个 checkpoint 放到持久化模型卷的 `/models/english`、`/models/multilingual`、`/models/typed-decisions`。每个目录至少要有上游模型包里的 `rl_agent_config.json`、`model.safetensors`、`tokenizer/` 和 `encoder/`。文件存在性可通过 `GET /health/ready` 检查；缺失时推理返回 `503 MODEL_UNAVAILABLE`。实际模型是否兼容仍需做推理冒烟测试。
+仓库不跟踪模型权重。Dockerfile 在构建阶段从 Hugging Face 固定提交 `1c5edc17a7acd8701df6fc341c0d179f1c62c982` 下载 **multilingual** checkpoint，只把该模型文件复制到最终镜像的 `/opt/models/multilingual`。构建时在离线模式下分别执行英文和中文推理，失败则不会发布镜像。运行容器无需下载模型，也无需挂载模型卷。`GET /health/ready` 检查镜像中的模型文件。
 
-本项目的模型推理不在应用启动时自动下载；请在启动前准备模型卷。一个应用进程只加载所需模型，默认最多驻留一个，可用 `LAYA_MAX_LOADED_MODELS` 调整；该值控制模型缓存数量，不限制同时处理的请求数。服务不设置额外的推理并发槽位；实际并发能力取决于运行时线程池、模型和机器资源。CPU 推理镜像使用 PyTorch CPU wheel；若部署 GPU，需按设备改用相应 PyTorch 基础环境并验收。
+发布镜像的 `LAYA_MODEL_PROFILE=multilingual`：`model=auto` 和 `model=multilingual` 都使用此模型；显式请求 `english` 或 `typed-decisions` 返回 `422 MODEL_NOT_AVAILABLE`。Playground 只列出镜像支持的模型。一个应用进程默认最多驻留一个模型，可用 `LAYA_MAX_LOADED_MODELS` 调整；该值控制模型缓存数量，不限制同时处理的请求数。实际并发能力取决于运行时线程池、模型和机器资源。发布镜像使用 PyTorch CPU wheel，当前 Action 构建 `linux/amd64`。
 
 本地先安装上游运行依赖与被忽略的 Laya 检出，再下载三个固定版本模型，运行包含英文、中文显式选型、中文自动路由和 typed-decisions 的真实请求冒烟测试：
 
@@ -46,15 +46,33 @@ LAYA_MODEL_DIR=models .venv/bin/python scripts/smoke-real-model.py
 
 ## 启动
 
-首次启动前，先构建镜像并将固定版本模型下载到模型卷，然后启动应用：
+在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 配置 `DOCKERHUB_USERNAME` 和 `DOCKERHUB_TOKEN`（需要有 `1panel/laya-server` 的推送权限）。在 **Actions → Build and push LAYA SERVER → Run workflow** 输入版本标签。正式发布时可同时勾选 `latest`；测试标签保持关闭。工作流会检出被忽略的上游 v0.3.7 源码并校验 SHA，运行后端测试，再构建及推送镜像。
+
+拉取已发布镜像并启动：
 
 ```sh
-docker compose build
-docker compose run --rm app python /app/scripts/download-models.py
+cp .env.example .env
+# 编辑 .env，配置管理员账号、密码和 LAYA_PUBLIC_ORIGIN
+LAYA_IMAGE_TAG=dev docker compose pull
+LAYA_IMAGE_TAG=dev docker compose up -d
+```
+
+也可用本地已检出的上游源码构建：
+
+```sh
+sh scripts/check-upstream.sh
+docker build -t 1panel/laya-server:dev .
+LAYA_IMAGE_TAG=dev docker compose up -d
+```
+
+如使用 `latest`，直接执行：
+
+```sh
+docker compose pull
 docker compose up -d
 ```
 
-Compose 只启动一个应用服务并将 `127.0.0.1:8080` 暴露给宿主机。公网入口需由外部反向代理提供 HTTPS，并将请求转发到该端口。SQLite 数据在 `laya-data` 卷，模型在 `laya-models` 卷。构建机器需要能访问 PyPI、PyTorch CPU 包索引和 npm registry；已构建镜像启动时无需拉取源码或依赖。
+Compose 只启动一个应用服务并将 `127.0.0.1:8080` 暴露给宿主机。公网入口需由外部反向代理提供 HTTPS，并将请求转发到该端口。SQLite 数据在 `laya-data` 卷；更新容器不会丢失数据库。构建机器需要能访问 PyPI、PyTorch CPU 包索引、npm registry 和 Hugging Face；已构建镜像启动时无需拉取源码、依赖或模型。
 
 如果由现有的 1Panel 反向代理提供公网 HTTPS，将域名请求转发到宿主机的 `127.0.0.1:8080`，并确保 `LAYA_PUBLIC_ORIGIN` 与实际 HTTPS 域名一致。反向代理不属于本项目的应用容器。
 
@@ -92,7 +110,7 @@ curl -X POST https://console.example.com/v1/systemone \
   -d '{"state":{"message":"I was charged twice"},"questions":{"refund":{"type":"noul","instructions":"Does the customer ask for a refund?"}}}'
 ```
 
-请求中的 `state` 可为字符串、JSON 对象或数组；`questions` 是非空问题 ID 映射，支持 `noul`、`choice` 和 `score`；`model` 可选 `auto`（默认）、`english`、`multilingual` 或 `typed-decisions`。返回结果保留上游 `answers`、`model` 和 `usage`。错误使用 `detail.code` 和 `detail.message`。无效密钥为 401，校验失败为 422，模型不可用为 503。控制台 Playground 使用管理员会话，记录为单独用量来源。
+请求中的 `state` 可为字符串、JSON 对象或数组；`questions` 是非空问题 ID 映射，支持 `noul`、`choice` 和 `score`。发布镜像只内置 multilingual，`model` 可选 `auto`（默认）或 `multilingual`；显式请求 `english` 或 `typed-decisions` 返回 `422 MODEL_NOT_AVAILABLE`。本地源码开发默认仍可使用全部三个模型，前提是已下载对应权重。返回结果保留上游 `answers`、`model` 和 `usage`。错误使用 `detail.code` 和 `detail.message`；无效密钥为 401，请求校验失败为 422，模型不可用为 503。控制台 Playground 使用管理员会话，记录为单独用量来源。
 
 ## 数据与维护
 
