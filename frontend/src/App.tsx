@@ -22,6 +22,32 @@ function displayError(error: unknown, t: Translate) {
   return apiErrorMessage(error instanceof ApiError ? error.code : undefined, t)
 }
 
+async function copyText(value: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return true
+    } catch { /* Fall back when clipboard access is denied. */ }
+  }
+
+  const field = document.createElement("textarea")
+  field.value = value
+  field.readOnly = true
+  field.style.position = "fixed"
+  field.style.opacity = "0"
+  const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  document.body.appendChild(field)
+  field.select()
+  try {
+    return document.execCommand("copy")
+  } catch {
+    return false
+  } finally {
+    field.remove()
+    focused?.focus()
+  }
+}
+
 function loadAvailableModels(): Promise<{ models: Model[] }> {
   return api("/internal/models")
 }
@@ -142,6 +168,7 @@ function Keys({ csrf }: { csrf: string }) {
   const [rawKey, setRawKey] = useState("")
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState<unknown>(null)
+  const [copyError, setCopyError] = useState(false)
   const [busy, setBusy] = useState(false)
   const reload = () => api<ApiKey[]>("/internal/api-keys").then(setKeys).catch(setError)
   useEffect(() => { void reload() }, [])
@@ -153,6 +180,7 @@ function Keys({ csrf }: { csrf: string }) {
     try {
       const created = await api<{ key: string }>("/internal/api-keys", { method: "POST", body: JSON.stringify({ name }) }, csrf)
       setRawKey(created.key)
+      setCopyError(false)
       setName("")
       setShowCreate(false)
       await reload()
@@ -173,10 +201,15 @@ function Keys({ csrf }: { csrf: string }) {
     }
   }
 
+  async function copyKey() {
+    setCopyError(false)
+    if (!await copyText(rawKey)) setCopyError(true)
+  }
+
   return <>
     <PageTitle title={t("apiKeys")} description={t("keysDescription")} action={<Button onClick={() => setShowCreate(true)}><Plus size={16} /> {t("createKey")}</Button>} />
     {error ? <div className="form-error" role="alert">{displayError(error, t)}</div> : null}
-    {rawKey ? <div className="key-reveal"><div><strong>{t("saveKeyTitle")}</strong><p>{t("saveKeyDescription")}</p></div><div className="key-value"><code>{rawKey}</code><Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(rawKey)}><Copy size={14} /> {t("copy")}</Button></div><button aria-label={t("closeKeyNotice")} onClick={() => setRawKey("")}><X size={18} /></button></div> : null}
+    {rawKey ? <div className="key-reveal"><div><strong>{t("saveKeyTitle")}</strong><p>{t("saveKeyDescription")}</p>{copyError ? <p className="form-error" role="alert">{t("copyManually")}</p> : null}</div><div className="key-value"><code>{rawKey}</code><Button variant="outline" size="sm" onClick={() => void copyKey()}><Copy size={14} /> {t("copy")}</Button></div><button aria-label={t("closeKeyNotice")} onClick={() => setRawKey("")}><X size={18} /></button></div> : null}
     <div className="section-head"><h2>{t("keyList")}</h2><span>{t("keyCount", { count: keys.length })}</span></div>
     {keys.length === 0 ? <div className="empty"><KeyRound size={23} /><h3>{t("noKey")}</h3><p>{t("noKeyDescription")}</p><Button variant="outline" onClick={() => setShowCreate(true)}>{t("createKey")}</Button></div> :
       <div className="table-wrap"><table><thead><tr><th>{t("name")}</th><th>{t("key")}</th><th>{t("createdAt")}</th><th>{t("lastUsed")}</th><th>{t("status")}</th><th></th></tr></thead><tbody>{keys.map(key =>
