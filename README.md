@@ -92,7 +92,7 @@ curl -X POST https://console.example.com/v1/systemone \
   -d '{"state":{"message":"I was charged twice"},"questions":{"refund":{"type":"noul","instructions":"Does the customer ask for a refund?"}}}'
 ```
 
-请求中的 `state` 可为字符串、JSON 对象或数组；`questions` 是非空问题 ID 映射，支持 `noul`、`choice` 和 `score`；`model` 可选 `auto`（默认）、`english`、`multilingual` 或 `typed-decisions`。返回保留上游 `answers`、`model` 和 `usage`。错误使用 `detail.code` 和 `detail.message`。无效密钥为 401，校验失败为 422，模型不可用为 503。控制台 Playground 使用管理员会话，记录为单独用量来源。
+请求中的 `state` 可为字符串、JSON 对象或数组；`questions` 是非空问题 ID 映射，支持 `noul`、`choice` 和 `score`；`model` 可选 `auto`（默认）、`english`、`multilingual` 或 `typed-decisions`。返回结果保留上游 `answers`、`model` 和 `usage`。错误使用 `detail.code` 和 `detail.message`。无效密钥为 401，校验失败为 422，模型不可用为 503。控制台 Playground 使用管理员会话，记录为单独用量来源。
 
 ## 数据与维护
 
