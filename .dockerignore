@@ -1,6 +1,19 @@
 /.git
+<<<<<<< Updated upstream
 /.env
 /.env.*
+=======
+!/laya/.git
+!/laya/.git/**
+/.github
+/.agents
+/AGENTS.md
+/openspec
+/.codex
+/.claude
+/CLAUDE.md
+/GEMINI.md
+>>>>>>> Stashed changes
 /.venv
 /.pnpm-store
 /.agents

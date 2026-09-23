@@ -17,7 +17,7 @@ with TemporaryDirectory() as temporary:
     os.environ["LAYA_ALLOW_INSECURE_LOCAL"] = "1"
     os.environ["LAYA_DATABASE_PATH"] = str(Path(temporary) / "smoke.sqlite3")
     os.environ["LAYA_MODEL_DIR"] = os.environ.get("LAYA_MODEL_DIR", "models")
-    os.environ["HF_HOME"] = str(Path(os.environ["LAYA_MODEL_DIR"]) / ".cache")
+    os.environ.setdefault("HF_HOME", str(Path(os.environ["LAYA_MODEL_DIR"]) / ".cache"))
     os.environ["LAYA_DEVICE"] = "cpu"
     os.environ["LAYA_FRONTEND_DIR"] = str(Path(temporary) / "no-frontend")
     from server.main import app
@@ -47,13 +47,23 @@ with TemporaryDirectory() as temporary:
         "state": {"message": "我的账户被重复扣费了，请尽快退款。"},
         "model": "multilingual",
     }
+    profile = os.environ.get("LAYA_MODEL_PROFILE", "all")
+    if profile == "multilingual":
+        cases = (
+            (chinese_payload, "multilingual"),
+            ({**english_payload, "model": "auto"}, "multilingual"),
+        )
+        assert client.get("/internal/models").json() == {"models": ["auto", "multilingual"]}
+        assert client.post("/v1/systemone", json=english_payload, headers=headers).status_code == 422
+    else:
+        cases = (
+            (english_payload, "english"),
+            (chinese_payload, "multilingual"),
+            ({**chinese_payload, "model": "auto"}, "multilingual"),
+            ({**english_payload, "model": "typed-decisions"}, "typed-decisions"),
+        )
     results = []
-    for payload, expected_route in (
-        (english_payload, "english"),
-        (chinese_payload, "multilingual"),
-        ({**chinese_payload, "model": "auto"}, "multilingual"),
-        ({**english_payload, "model": "typed-decisions"}, "typed-decisions"),
-    ):
+    for payload, expected_route in cases:
         prediction = client.post("/v1/systemone", json=payload, headers=headers)
         assert prediction.status_code == 200, prediction.text
         data = prediction.json()
@@ -63,7 +73,7 @@ with TemporaryDirectory() as temporary:
         assert data["routing"]["model"] == expected_route, data["routing"]
         results.append(data)
     usage = client.get("/internal/usage").json()["totals"]
-    assert usage["requests"] == 4
+    assert usage["requests"] == len(cases)
     assert usage["input_tokens"] == sum(item["usage"]["input_tokens"] for item in results)
     assert client.post(f"/internal/api-keys/{created.json()['id']}/revoke", headers=write_headers).status_code == 200
     assert client.post("/v1/systemone", json=payload, headers=headers).status_code == 401

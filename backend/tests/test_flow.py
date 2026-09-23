@@ -20,9 +20,11 @@ from server.main import create_app  # noqa: E402
 class FakePredictor:
     def __init__(self):
         self.calls = 0
+        self.models = []
 
     def predict(self, state, questions, model=None):
         self.calls += 1
+        self.models.append(model)
         assert set(questions) == {"flag", "intent", "score"}
         return {
             "model": "laya-rl-agent",
@@ -41,6 +43,33 @@ PAYLOAD = {
 }
 
 
+def test_multilingual_image_routes_auto_and_rejects_unbundled_models(tmp_path):
+    model = tmp_path / "models" / "multilingual"
+    for filename in ("rl_agent_config.json", "model.safetensors", "tokenizer/tokenizer.json", "encoder/config.json"):
+        path = model / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    fake = FakePredictor()
+    settings = Settings("admin", PasswordHasher().hash("correct horse battery staple"), tmp_path / "db.sqlite3",
+                        "http://testserver", False, 1, tmp_path / "models", None, 1, tmp_path / "missing-dist", "multilingual")
+    client = TestClient(create_app(settings, fake))
+    assert client.get("/health/ready").status_code == 200
+    assert client.get("/internal/models").status_code == 401
+    origin = {"Origin": "http://testserver"}
+    assert client.post("/internal/auth/login", json={"username": "admin", "password": "correct horse battery staple"}, headers=origin).status_code == 200
+    assert client.get("/internal/models").json() == {"models": ["auto", "multilingual"]}
+    csrf = client.get("/internal/auth/session").json()["csrf_token"]
+    key = client.post("/internal/api-keys", json={"name": "smoke"}, headers={**origin, "X-CSRF-Token": csrf}).json()["key"]
+    headers = {"Authorization": f"Bearer {key}"}
+    assert client.post("/v1/systemone", json={**PAYLOAD, "model": "auto"}, headers=headers).status_code == 200
+    assert client.post("/v1/systemone", json={**PAYLOAD, "model": "multilingual"}, headers=headers).status_code == 200
+    for unsupported in ("english", "typed-decisions"):
+        response = client.post("/v1/systemone", json={**PAYLOAD, "model": unsupported}, headers=headers)
+        assert response.status_code == 422
+        assert response.json()["detail"]["code"] == "MODEL_NOT_AVAILABLE"
+    assert fake.models == ["multilingual", "multilingual"]
+
+
 def test_admin_password_from_environment(tmp_path, monkeypatch):
     password = "0123456789"
     monkeypatch.setenv("LAYA_ADMIN_USERNAME", "configured-admin")
@@ -50,6 +79,12 @@ def test_admin_password_from_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("LAYA_ALLOW_INSECURE_LOCAL", "1")
     monkeypatch.setenv("LAYA_DATABASE_PATH", str(tmp_path / "db.sqlite3"))
     settings = Settings.from_env()
+    monkeypatch.setenv("LAYA_MODEL_PROFILE", "multilingual")
+    assert Settings.from_env().model_profile == "multilingual"
+    monkeypatch.setenv("LAYA_MODEL_PROFILE", "unknown")
+    with pytest.raises(RuntimeError, match="LAYA_MODEL_PROFILE"):
+        Settings.from_env()
+    monkeypatch.delenv("LAYA_MODEL_PROFILE")
     assert settings.admin_password_hash != password
     assert settings.admin_password_hash.startswith("$argon2id$")
     client = TestClient(create_app(settings, FakePredictor()))
