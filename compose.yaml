@@ -1,7 +1,9 @@
 services:
   app:
     image: 1panel/laya-server:${LAYA_IMAGE_TAG:-latest}
-    env_file: .env
+    environment:
+      - LAYA_ADMIN_USERNAME
+      - LAYA_ADMIN_PASSWORD
     ports:
       - "127.0.0.1:8080:8080"
     volumes:

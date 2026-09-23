@@ -129,7 +129,6 @@ const zhCN = {
   docsNote: "首版按成功请求计量；超时重试可能产生新的推理请求。",
   errorGeneric: "请求失败，请稍后重试。",
   errorValidation: "请求格式有误，请检查输入。",
-  errorOrigin: "请求来源不被允许，请从控制台页面重试。",
   errorUnauthenticated: "会话已失效，请重新登录。",
   errorCsrf: "请求校验失败，请刷新页面后重试。",
   errorInvalidKey: "API Key 无效或已撤销。",
@@ -270,7 +269,6 @@ const en: Record<MessageKey, string> = {
   docsNote: "Only successful requests are metered in this version. Retrying after a timeout may run inference again.",
   errorGeneric: "Request failed. Please try again later.",
   errorValidation: "Invalid request. Check your input.",
-  errorOrigin: "Request origin is not allowed. Try again from the console.",
   errorUnauthenticated: "Your session has expired. Sign in again.",
   errorCsrf: "Request verification failed. Refresh the page and try again.",
   errorInvalidKey: "The API key is invalid or revoked.",
@@ -409,7 +407,6 @@ const zhTW: Record<MessageKey, string> = {
   docsNote: "首版依成功請求計量；逾時後重試可能再次執行推論。",
   errorGeneric: "請求失敗，請稍後再試。",
   errorValidation: "請求格式有誤，請檢查輸入。",
-  errorOrigin: "不允許此請求來源，請從控制台重試。",
   errorUnauthenticated: "工作階段已失效，請重新登入。",
   errorCsrf: "請求驗證失敗，請重新整理頁面後再試。",
   errorInvalidKey: "API Key 無效或已撤銷。",
@@ -473,7 +470,6 @@ export function useI18n(): I18nContextValue {
 
 const errorMessages: Record<string, MessageKey> = {
   VALIDATION_ERROR: "errorValidation",
-  ORIGIN_MISMATCH: "errorOrigin",
   UNAUTHENTICATED: "errorUnauthenticated",
   CSRF_INVALID: "errorCsrf",
   INVALID_API_KEY: "errorInvalidKey",

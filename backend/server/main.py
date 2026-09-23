@@ -49,10 +49,6 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
             "code": "VALIDATION_ERROR", "message": "Request validation failed", "errors": fields,
         }})
 
-    def require_origin(request: Request) -> None:
-        if request.headers.get("origin") != settings.public_origin:
-            raise error(403, "ORIGIN_MISMATCH", "Request origin is not allowed")
-
     def current_session(request: Request) -> str:
         token = request.cookies.get(SESSION_COOKIE)
         if not token:
@@ -69,7 +65,6 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     Session = Annotated[str, Depends(current_session)]
 
     def require_csrf(request: Request, session: Session, x_csrf_token: Annotated[str | None, Header()] = None) -> None:
-        require_origin(request)
         cookie = request.cookies.get(CSRF_COOKIE)
         if not cookie or not x_csrf_token or not hmac.compare_digest(cookie, x_csrf_token):
             raise error(403, "CSRF_INVALID", "CSRF token is invalid")
@@ -163,7 +158,6 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
 
     @app.post("/internal/auth/login")
     def login(payload: LoginRequest, request: Request, response: Response) -> dict[str, str]:
-        require_origin(request)
         source = request.client.host if request.client else "unknown"
         since = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat(timespec="seconds")
         with db.connect() as connection:
@@ -188,7 +182,8 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
         expires = (datetime.now(timezone.utc) + timedelta(hours=settings.session_hours)).isoformat(timespec="seconds")
         with db.connect() as connection:
             connection.execute("INSERT INTO sessions VALUES (?,?,?)", (digest(session), digest(csrf), expires))
-        cookie_options = {"secure": settings.secure_cookie, "samesite": "lax", "path": "/", "max_age": settings.session_hours * 3600}
+        is_https = request.url.scheme == "https" or request.headers.get("origin", "").startswith("https://")
+        cookie_options = {"secure": is_https, "samesite": "lax", "path": "/", "max_age": settings.session_hours * 3600}
         response.set_cookie(SESSION_COOKIE, session, httponly=True, **cookie_options)
         response.set_cookie(CSRF_COOKIE, csrf, httponly=False, **cookie_options)
         return {"username": settings.admin_username}

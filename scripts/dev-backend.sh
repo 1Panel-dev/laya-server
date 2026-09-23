@@ -20,8 +20,6 @@ if [ -z "${LAYA_ADMIN_PASSWORD:-}" ] && [ -z "${LAYA_ADMIN_PASSWORD_HASH:-}" ]; 
 fi
 
 # Vite proxies /internal and /v1 to this backend during local development.
-export LAYA_PUBLIC_ORIGIN=http://127.0.0.1:5173
-export LAYA_ALLOW_INSECURE_LOCAL=1
 export LAYA_DATABASE_PATH=./data/laya.sqlite3
 export LAYA_MODEL_DIR=./models
 export LAYA_DEVICE="${LAYA_DEVICE:-cpu}"

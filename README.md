@@ -16,13 +16,11 @@ sh scripts/check-upstream.sh
 
 ## 管理员与配置
 
-在 `.env` 中设置 `LAYA_ADMIN_USERNAME` 和至少 10 个字符的 `LAYA_ADMIN_PASSWORD`，服务启动时会在内存中生成 Argon2id 哈希用于登录校验。也可以不设置明文密码，改用 `.venv/bin/python scripts/hash-password.py` 生成 `LAYA_ADMIN_PASSWORD_HASH`；两者必须且只能设置一个。哈希值用单引号包住，确保 Docker Compose 按字面保留 `$`。`LAYA_PUBLIC_ORIGIN` 也必须填写；生产环境必须是 HTTPS 来源，例如 `https://console.example.com`。本地 HTTP 测试需要 `LAYA_ALLOW_INSECURE_LOCAL=1`。`.env` 已被 Git 忽略，不要提交实际密码。
+Docker Compose 只传入当前 shell 或部署平台设置的 `LAYA_ADMIN_USERNAME` 和 `LAYA_ADMIN_PASSWORD`，不需要 `.env` 文件。密码至少 10 个字符；服务启动时会在内存中生成 Argon2id 哈希用于登录校验。管理操作仍要求会话和 CSRF token。其他运行参数使用后端默认值。`.env.example` 仅供本地热更新脚本使用，不要提交实际密码。
 
 ```sh
-cp .env.example .env
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -e 'backend[test]'
-# 编辑 .env，填写 LAYA_ADMIN_USERNAME 和 LAYA_ADMIN_PASSWORD
 ```
 
 ## 模型文件
@@ -48,13 +46,14 @@ LAYA_MODEL_DIR=models .venv/bin/python scripts/smoke-real-model.py
 
 在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 配置 `DOCKERHUB_USERNAME` 和 `DOCKERHUB_TOKEN`（需要有 `1panel/laya-server` 的推送权限）。在 **Actions → Build and push LAYA SERVER → Run workflow** 输入版本标签。正式发布时可同时勾选 `latest`；测试标签保持关闭。工作流会检出被忽略的上游 v0.3.7 源码并校验 SHA，运行后端测试，再构建及推送镜像。
 
-拉取已发布镜像并启动：
+在当前 shell 中设置变量，拉取已发布镜像并启动：
 
 ```sh
-cp .env.example .env
-# 编辑 .env，配置管理员账号、密码和 LAYA_PUBLIC_ORIGIN
-LAYA_IMAGE_TAG=dev docker compose pull
-LAYA_IMAGE_TAG=dev docker compose up -d
+export LAYA_ADMIN_USERNAME=admin
+export LAYA_ADMIN_PASSWORD='replace-with-a-password-of-at-least-10-characters'
+export LAYA_IMAGE_TAG=dev
+docker compose pull
+docker compose up -d
 ```
 
 也可用本地已检出的上游源码构建：
@@ -62,19 +61,21 @@ LAYA_IMAGE_TAG=dev docker compose up -d
 ```sh
 sh scripts/check-upstream.sh
 docker build -t 1panel/laya-server:dev .
-LAYA_IMAGE_TAG=dev docker compose up -d
+export LAYA_IMAGE_TAG=dev
+docker compose up -d
 ```
 
 如使用 `latest`，直接执行：
 
 ```sh
+unset LAYA_IMAGE_TAG
 docker compose pull
 docker compose up -d
 ```
 
-Compose 只启动一个应用服务并将 `127.0.0.1:8080` 暴露给宿主机。公网入口需由外部反向代理提供 HTTPS，并将请求转发到该端口。SQLite 数据在 `laya-data` 卷；更新容器不会丢失数据库。构建机器需要能访问 PyPI、PyTorch CPU 包索引、npm registry 和 Hugging Face；已构建镜像启动时无需拉取源码、依赖或模型。
+Compose 从启动它的进程环境传入管理员配置，只启动一个应用服务并将 `127.0.0.1:8080` 暴露给宿主机。公网入口需由外部反向代理提供 HTTPS，并将请求转发到该端口。SQLite 数据在 `laya-data` 卷；更新容器不会丢失数据库。构建机器需要能访问 PyPI、PyTorch CPU 包索引、npm registry 和 Hugging Face；已构建镜像启动时无需拉取源码、依赖或模型。
 
-如果由现有的 1Panel 反向代理提供公网 HTTPS，将域名请求转发到宿主机的 `127.0.0.1:8080`，并确保 `LAYA_PUBLIC_ORIGIN` 与实际 HTTPS 域名一致。反向代理不属于本项目的应用容器。
+如果由现有的 1Panel 反向代理提供公网 HTTPS，将域名请求转发到宿主机的 `127.0.0.1:8080`。登录时服务根据请求是否为 HTTPS 设置 Cookie 的 `Secure` 标记；请让反向代理正确转发协议。反向代理不属于本项目的应用容器。
 
 ### 本地开发（热更新）
 
@@ -95,7 +96,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 `http://127.0.0.1:5173` 登录。Vite 将 `/internal` 和 `/v1` 代理到本地 8000 端口；生产环境仍由同一个 FastAPI 容器提供构建后的前端。若只想用一个本地进程，可先在 `frontend/` 运行 `pnpm build`，再把 `LAYA_PUBLIC_ORIGIN` 设为 `http://127.0.0.1:8000` 启动 Uvicorn 并打开 8000 端口。
+打开 `http://127.0.0.1:5173` 登录。Vite 将 `/internal` 和 `/v1` 代理到本地 8000 端口；生产环境仍由同一个 FastAPI 容器提供构建后的前端。若只想用一个本地进程，可先在 `frontend/` 运行 `pnpm build`，再启动 Uvicorn 并打开 8000 端口。
 
 控制台支持简体中文、English 和繁體中文。登录页及登录后的顶部栏均可切换语言；首次访问按浏览器语言选择，手动选择会保存在当前浏览器中。
 
