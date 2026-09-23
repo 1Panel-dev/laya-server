@@ -7,6 +7,7 @@ COPY frontend/ ./
 RUN CI=true pnpm build
 
 FROM debian:bookworm-slim AS upstream-check
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY laya/ /upstream/
 ARG LAYA_UPSTREAM_SHA=010bacef009c855ccba814b51f7c8e1d38ab5e3f
