@@ -23,6 +23,10 @@ Replace the sample password with your own, then sign in at `http://YOUR_SERVER_I
 
 `YOUR_SERVER_IP` is your server's IP address. To use a domain name, configure HTTPS on a reverse proxy and forward requests to port 8080 on the server.
 
+## Screenshot
+
+![LAYA SERVER Playground](docs/images/screenshot-en.png)
+
 ## Call the API
 
 ```sh
