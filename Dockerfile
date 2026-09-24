@@ -10,7 +10,7 @@ FROM debian:bookworm-slim AS upstream-check
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY laya/ /upstream/
-ARG LAYA_UPSTREAM_SHA=010bacef009c855ccba814b51f7c8e1d38ab5e3f
+ARG LAYA_UPSTREAM_SHA=1e28ac20c0896b1c37a744cd11f740eb98f8b178
 RUN test "$(git -C /upstream rev-parse HEAD)" = "$LAYA_UPSTREAM_SHA" && \
     test -z "$(git -C /upstream status --porcelain)" || \
     (echo 'Laya checkout must match the pinned SHA and be clean' >&2; exit 1)

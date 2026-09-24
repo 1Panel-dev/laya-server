@@ -1,4 +1,5 @@
 name: Build and push LAYA SERVER
+run-name: Build and push LAYA SERVER ${{ inputs.dockerImageTag }}
 
 on:
   workflow_dispatch:
@@ -53,8 +54,8 @@ jobs:
       - name: Check out pinned upstream Laya
         shell: bash
         run: |
-          git clone --depth 1 --branch v0.3.7 https://github.com/NandhaKishorM/laya.git laya
-          git -C laya checkout --detach 010bacef009c855ccba814b51f7c8e1d38ab5e3f
+          git clone --depth 1 --branch v0.3.11 https://github.com/NandhaKishorM/laya.git laya
+          git -C laya checkout --detach 1e28ac20c0896b1c37a744cd11f740eb98f8b178
           sh scripts/check-upstream.sh
 
       - name: Set up Python
