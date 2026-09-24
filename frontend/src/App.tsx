@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react"
-import { Activity, BookOpen, ChartNoAxesColumn, CircleHelp, Copy, KeyRound, Languages, LogOut, Menu, Plus, Send, X } from "lucide-react"
+import { Activity, BookOpen, ChartNoAxesColumn, Check, CircleHelp, Copy, KeyRound, Languages, LogOut, Menu, Plus, Send, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { apiErrorMessage, useI18n, type Locale, type MessageKey, type Translate } from "./i18n"
@@ -168,10 +168,15 @@ function Keys({ csrf }: { csrf: string }) {
   const [rawKey, setRawKey] = useState("")
   const [showCreate, setShowCreate] = useState(false)
   const [error, setError] = useState<unknown>(null)
-  const [copyError, setCopyError] = useState(false)
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle")
   const [busy, setBusy] = useState(false)
   const reload = () => api<ApiKey[]>("/internal/api-keys").then(setKeys).catch(setError)
   useEffect(() => { void reload() }, [])
+  useEffect(() => {
+    if (copyStatus !== "copied") return
+    const timer = window.setTimeout(() => setCopyStatus("idle"), 3000)
+    return () => window.clearTimeout(timer)
+  }, [copyStatus])
 
   async function create(event: FormEvent) {
     event.preventDefault()
@@ -180,7 +185,7 @@ function Keys({ csrf }: { csrf: string }) {
     try {
       const created = await api<{ key: string }>("/internal/api-keys", { method: "POST", body: JSON.stringify({ name }) }, csrf)
       setRawKey(created.key)
-      setCopyError(false)
+      setCopyStatus("idle")
       setName("")
       setShowCreate(false)
       await reload()
@@ -202,14 +207,14 @@ function Keys({ csrf }: { csrf: string }) {
   }
 
   async function copyKey() {
-    setCopyError(false)
-    if (!await copyText(rawKey)) setCopyError(true)
+    setCopyStatus("idle")
+    setCopyStatus(await copyText(rawKey) ? "copied" : "error")
   }
 
   return <>
     <PageTitle title={t("apiKeys")} description={t("keysDescription")} action={<Button onClick={() => setShowCreate(true)}><Plus size={16} /> {t("createKey")}</Button>} />
     {error ? <div className="form-error" role="alert">{displayError(error, t)}</div> : null}
-    {rawKey ? <div className="key-reveal"><div><strong>{t("saveKeyTitle")}</strong><p>{t("saveKeyDescription")}</p>{copyError ? <p className="form-error" role="alert">{t("copyManually")}</p> : null}</div><div className="key-value"><code>{rawKey}</code><Button variant="outline" size="sm" onClick={() => void copyKey()}><Copy size={14} /> {t("copy")}</Button></div><button aria-label={t("closeKeyNotice")} onClick={() => setRawKey("")}><X size={18} /></button></div> : null}
+    {rawKey ? <div className="key-reveal"><div><strong>{t("saveKeyTitle")}</strong><p>{t("saveKeyDescription")}</p>{copyStatus === "error" ? <p className="form-error" role="alert">{t("copyManually")}</p> : null}</div><div className="key-value"><code>{rawKey}</code><Button variant="outline" size="sm" className={copyStatus === "copied" ? "copy-success" : undefined} onClick={() => void copyKey()}>{copyStatus === "copied" ? <Check size={14} /> : <Copy size={14} />} {t(copyStatus === "copied" ? "copied" : "copy")}</Button><span className="sr-only" role="status">{copyStatus === "copied" ? t("copied") : ""}</span></div><button aria-label={t("closeKeyNotice")} onClick={() => { setRawKey(""); setCopyStatus("idle") }}><X size={18} /></button></div> : null}
     <div className="section-head"><h2>{t("keyList")}</h2><span>{t("keyCount", { count: keys.length })}</span></div>
     {keys.length === 0 ? <div className="empty"><KeyRound size={23} /><h3>{t("noKey")}</h3><p>{t("noKeyDescription")}</p><Button variant="outline" onClick={() => setShowCreate(true)}>{t("createKey")}</Button></div> :
       <div className="table-wrap"><table><thead><tr><th>{t("name")}</th><th>{t("key")}</th><th>{t("createdAt")}</th><th>{t("lastUsed")}</th><th>{t("status")}</th><th></th></tr></thead><tbody>{keys.map(key =>

@@ -74,7 +74,9 @@ td code, .docs code, .home-intro code { font-size: 12px; background: #f4f5f6; bo
 .key-reveal strong { font-size: 14px; }
 .key-reveal p { margin: 5px 0 14px; color: #6e7888; font-size: 12px; }
 .key-value { display: flex; align-items: center; gap: 10px; }
-.key-value code { min-width: 0; overflow-wrap: anywhere; background: #fff; border: 1px solid #dce6f6; border-radius: 5px; padding: 9px; font-size: 12px; flex: 1; }
+.key-value code { min-width: 0; overflow-wrap: anywhere; background: #fff; border: 1px solid #dce6f6; border-radius: 5px; padding: 9px; font-size: 12px; flex: 1; user-select: all; }
+.key-value .copy-success { border-color: #b8dcc6; color: #216845; background: #f1faf4; }
+.key-reveal .form-error { color: #ae3939; }
 .dialog-backdrop { position: fixed; inset: 0; background: #1f2937a6; display: grid; place-items: center; padding: 20px; z-index: 20; }
 .dialog { position: relative; background: #fff; border-radius: 10px; padding: 28px; width: min(100%, 430px); box-shadow: 0 20px 60px #1018272b; }
 .dialog-close { position: absolute; top: 16px; right: 16px; }
