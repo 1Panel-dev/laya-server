@@ -23,6 +23,10 @@ docker run -d --name laya-server --init --restart unless-stopped \
 
 `YOUR_SERVER_IP` 是服务器 IP。若通过域名访问，可在反向代理上配置 HTTPS 并转发到服务器的 8080 端口。
 
+## 界面截图
+
+![LAYA SERVER 控制台](docs/images/screenshot-cn.png)
+
 ## 调用 API
 
 ```sh
