@@ -249,7 +249,7 @@ function Docs() {
   const { t } = useI18n()
   return <>
     <PageTitle title={t("documentation")} description={t("docsDescription")} />
-    <div className="docs"><h2>POST /v1/systemone</h2><p>{t("docsIntro")}</p><pre>{JSON.stringify(sampleRequest, null, 2)}</pre><h2>{t("docsResponse")}</h2><p>{t("docsResponseDescription")}</p><p className="docs-note"><CircleHelp size={16} /> {t("docsNote")}</p></div>
+    <div className="docs"><h2>POST /v1/systemone</h2><p>{t("docsIntro")}</p><pre>{JSON.stringify(sampleRequest, null, 2)}</pre><h2>{t("docsMaxLenTitle")}</h2><p>{t("docsMaxLenDescription")}</p><pre>{JSON.stringify({ ...sampleRequest, max_len: 8192 }, null, 2)}</pre><h2>{t("docsResponse")}</h2><p>{t("docsResponseDescription")}</p><p className="docs-note"><CircleHelp size={16} /> {t("docsNote")}</p></div>
   </>
 }
 

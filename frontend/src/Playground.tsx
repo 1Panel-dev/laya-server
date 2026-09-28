@@ -14,7 +14,7 @@ type Question = {
   choices: { label: string; description: string }[]
   levels: string[]
 }
-type Draft = { state: string; stateMode: "text" | "json"; model: Model; questions: Question[] }
+type Draft = { state: string; stateMode: "text" | "json"; model: Model; maxLen: string; questions: Question[] }
 type Prediction = { answers: Record<string, unknown>; model?: string; routing?: { model?: string }; usage?: { input_tokens?: number; output_tokens?: number } }
 
 export const sampleRequest = {
@@ -40,15 +40,21 @@ function makeQuestion(type: QuestionType = "noul"): Question {
   return { uid: String(++nextQuestionUid), id: "", type, instructions: "", choices: [{ label: "", description: "" }, { label: "", description: "" }], levels: ["", ""] }
 }
 
+function checkMaxLen(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 512 || value > 8192) throw new DraftError("playgroundInvalidMaxLen")
+  return value
+}
+
 function parseDraft(value: string): Draft {
   let request: unknown
   try { request = JSON.parse(value) } catch { throw new DraftError("playgroundInvalidJson") }
   if (!request || typeof request !== "object" || Array.isArray(request)) throw new DraftError("playgroundFormUnsupported")
   const data = request as Record<string, unknown>
-  if (Object.keys(data).some(key => !["state", "questions", "model"].includes(key))) throw new DraftError("playgroundFormUnsupported")
+  if (Object.keys(data).some(key => !["state", "questions", "model", "max_len"].includes(key))) throw new DraftError("playgroundFormUnsupported")
   if (!(typeof data.state === "string" || (data.state !== null && typeof data.state === "object"))) throw new DraftError("playgroundFormUnsupported")
   const model = Object.hasOwn(data, "model") ? data.model : "auto"
   if (!models.includes(model as Model)) throw new DraftError("playgroundFormUnsupported")
+  const maxLen = data.max_len == null ? "" : String(checkMaxLen(data.max_len))
   if (!data.questions || typeof data.questions !== "object" || Array.isArray(data.questions)) throw new DraftError("playgroundFormUnsupported")
   const questions = Object.entries(data.questions).map(([id, definition]) => {
     if (!definition || typeof definition !== "object" || Array.isArray(definition)) throw new DraftError("playgroundFormUnsupported")
@@ -70,10 +76,11 @@ function parseDraft(value: string): Draft {
     }
     return question
   })
-  return { state: typeof data.state === "string" ? data.state : JSON.stringify(data.state, null, 2), stateMode: typeof data.state === "string" ? "text" : "json", model: model as Model, questions }
+  return { state: typeof data.state === "string" ? data.state : JSON.stringify(data.state, null, 2), stateMode: typeof data.state === "string" ? "text" : "json", model: model as Model, maxLen, questions }
 }
 
 function buildRequest(draft: Draft): string {
+  const maxLen = draft.maxLen.trim() ? checkMaxLen(Number(draft.maxLen)) : undefined
   let state: unknown = draft.state
   if (draft.stateMode === "json") {
     try { state = JSON.parse(draft.state) } catch { throw new DraftError("playgroundInvalidState") }
@@ -98,7 +105,7 @@ function buildRequest(draft: Draft): string {
     }
     questions[id] = definition
   }
-  return JSON.stringify({ state, questions, model: draft.model }, null, 2)
+  return JSON.stringify({ state, questions, model: draft.model, max_len: maxLen }, null, 2)
 }
 
 function errorText(error: unknown, t: Translate): string {
@@ -212,7 +219,10 @@ export function Playground({ run, loadModels }: { run: (body: string) => Promise
             </div>)}</div>
             <button type="button" className="playground-add-question" disabled={draft.questions.length >= 50} onClick={() => changeDraft(previous => ({ ...previous, questions: [...previous.questions, makeQuestion()] }))}><Plus size={16} />{t("playgroundAddQuestion")}</button>
           </section>
-          <section className="playground-section playground-model"><label htmlFor="playground-model">{t("playgroundModel")}</label><select id="playground-model" value={draft.model} onChange={event => changeDraft(previous => ({ ...previous, model: event.target.value as Model }))}>{availableModels.map(model => <option key={model} value={model}>{model}</option>)}</select><p>{t("playgroundModelHint")}</p></section>
+          <section className="playground-section playground-model">
+            <label htmlFor="playground-model">{t("playgroundModel")}</label><select id="playground-model" value={draft.model} onChange={event => changeDraft(previous => ({ ...previous, model: event.target.value as Model }))}>{availableModels.map(model => <option key={model} value={model}>{model}</option>)}</select><p>{t("playgroundModelHint")}</p>
+            <label htmlFor="playground-max-len">{t("playgroundMaxLen")}</label><Input id="playground-max-len" type="number" min={512} max={8192} step={1} value={draft.maxLen} placeholder={t("playgroundMaxLenDefault")} aria-describedby="playground-max-len-hint" onChange={event => changeDraft(previous => ({ ...previous, maxLen: event.target.value }))} /><p id="playground-max-len-hint">{t("playgroundMaxLenHint")}</p>
+          </section>
         </>}
         <div className="playground-submit">{error ? <p className="form-error" role="alert">{error}</p> : null}<Button type="button" onClick={submit} disabled={busy}><Send size={16} />{busy ? t("runningInference") : t("runInference")}</Button></div>
       </div>

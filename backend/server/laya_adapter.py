@@ -4,7 +4,8 @@ import sys
 
 
 class Predictor(Protocol):
-    def predict(self, state: Any, questions: dict[str, Any], model: str | None = None) -> dict[str, Any]: ...
+    def predict(self, state: Any, questions: dict[str, Any], model: str | None = None,
+                *, max_len: int | None = None) -> dict[str, Any]: ...
 
 
 class LayaAdapter:
@@ -24,9 +25,11 @@ class LayaAdapter:
         self.router = Router(models=models, device=device, max_loaded=max_loaded)
         self.model_profile = model_profile
 
-    def predict(self, state: Any, questions: dict[str, Any], model: str | None = None) -> dict[str, Any]:
+    def predict(self, state: Any, questions: dict[str, Any], model: str | None = None,
+                *, max_len: int | None = None) -> dict[str, Any]:
         if self.model_profile == "multilingual":
             if model not in (None, "multilingual"):
                 raise ValueError("Model is not available in this image")
             model = "multilingual"
-        return self.router.predict(state, questions, model=model)
+        overrides = {} if max_len is None else {"max_len": max_len}
+        return self.router.predict(state, questions, model=model, **overrides)

@@ -146,7 +146,8 @@ td code, .docs code, .home-intro code { font-size: 12px; background: #f4f5f6; bo
 .playground-add-inline { padding: 8px 0 0; }
 .playground-add-question { width: 100%; justify-content: center; margin-top: 14px; padding: 11px; border: 1px dashed #ced7e5; border-radius: 6px; }
 .playground-add-question:hover { background: #f8faff; border-color: #9ab1d7; }
-.playground-model { display: grid; grid-template-columns: 80px minmax(180px, 240px); align-items: center; gap: 5px 12px; }
+.playground-model { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); align-items: center; gap: 8px 12px; }
+.playground-model select, .playground-model input { max-width: 240px; }
 .playground-model label { display: block; }
 .playground-model p { grid-column: 2; }
 .playground-raw { padding: 22px 24px; }

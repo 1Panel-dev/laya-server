@@ -14,8 +14,8 @@ for unavailable in ("english", "typed-decisions"):
 
 predictor = LayaAdapter(model_dir, "cpu", 1, "multilingual")
 question = {"flag": {"type": "noul", "instructions": "Does this customer request a refund?"}}
-for state in ("Please refund the duplicate charge.", "请退还重复扣除的费用。"):
-    result = predictor.predict(state, question)
+for state, max_len in (("Please refund the duplicate charge.", None), ("请退还重复扣除的费用。", 8192)):
+    result = predictor.predict(state, question, max_len=max_len)
     assert result["routing"]["model"] == "multilingual", result
     assert "flag" in result["answers"], result
-print("Bundled multilingual model passed offline inference in both languages")
+print("Bundled multilingual model passed offline inference with default and extended budgets")

@@ -108,11 +108,13 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
                     raise error(503, "MODEL_UNAVAILABLE", "Model is unavailable")
         started = time.monotonic()
         try:
+            overrides = {} if payload.max_len is None else {"max_len": payload.max_len}
             result = router_holder["router"].predict(
                 payload.state,
                 {qid: q.model_dump(exclude_none=True) for qid, q in payload.questions.items()},
                 model=("multilingual" if settings.model_profile == "multilingual" else None)
                 if payload.model == "auto" else payload.model,
+                **overrides,
             )
             if not isinstance(result, dict) or not isinstance(result.get("answers"), dict):
                 raise ValueError("Laya returned invalid answers")

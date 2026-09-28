@@ -55,6 +55,7 @@ class InferenceRequest(BaseModel):
     state: str | dict[str, object] | list[object]
     questions: Annotated[dict[str, Question], Field(min_length=1, max_length=50)]
     model: Literal["auto", "english", "multilingual", "typed-decisions"] = "auto"
+    max_len: Annotated[int, Field(strict=True, ge=512, le=8192)] | None = None
 
 
 class LoginRequest(BaseModel):
