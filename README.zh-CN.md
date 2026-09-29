@@ -4,6 +4,13 @@
 
 <h1 align="center">LAYA SERVER</h1>
 
+<p align="center">
+  <a href="https://github.com/1Panel-dev/laya-server/releases"><img src="https://img.shields.io/github/v/release/1Panel-dev/laya-server" alt="Release"></a>
+  <a href="https://github.com/1Panel-dev/laya-server/stargazers"><img src="https://img.shields.io/github/stars/1Panel-dev/laya-server" alt="GitHub stars"></a>
+  <a href="https://hub.docker.com/r/1panel/laya-server"><img src="https://img.shields.io/docker/pulls/1panel/laya-server" alt="Docker pulls"></a>
+  <a href="https://laya-ai.com/projects#project-1panel-dev-laya-server"><img src="https://laya-ai.com/badges/listed-on-laya-ai.svg" alt="Listed on laya-ai.com"></a>
+</p>
+
 LAYA SERVER 是 Laya 结构化决策模型的自托管 API 与 Web 界面，兼容 TypeSafe Jev API 格式。它将[上游 Laya](https://github.com/NandhaKishorM/laya) 的 System One 推理能力封装为独立服务，方便开发者在自己的应用中部署和使用。
 
 ## 快速开始
