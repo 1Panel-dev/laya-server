@@ -53,6 +53,7 @@ with TemporaryDirectory() as temporary:
         assert ("TAIL_SENTINEL_ZX921" in tokenizer.decode(ids)) == (maximum == 8192)
     assert encoded[1024] == 1024
     assert 1024 < encoded[8192] <= 8192
+    state_tokens = len(tokenizer.encode(state, add_special_tokens=False))
 
     measurements = []
     with TestClient(create_app(predictor=adapter)) as client:
@@ -76,7 +77,13 @@ with TemporaryDirectory() as temporary:
             data = response.json()
             assert data["routing"]["model"] == "multilingual"
             assert data["answers"]["refund"]["type"] == "noul"
-            assert data["usage"] == {"input_tokens": encoded[maximum], "output_tokens": 0}, data["usage"]
+            usage = data["usage"]
+            assert usage["input_tokens"] == encoded[maximum], usage
+            assert usage["output_tokens"] == 0, usage
+            assert usage["state_tokens"] == state_tokens, usage
+            assert usage["truncated"] is (maximum == 1024), usage
+            assert (usage["state_tokens_dropped"] > 0) == (maximum == 1024), usage
+            assert usage["truncated_questions"] == (["refund"] if maximum == 1024 else []), usage
             measurements.append({"endpoint": endpoint, "max_len": options.get("max_len"),
                                  "input_tokens": data["usage"]["input_tokens"], "seconds": duration,
                                  "peak_memory_mib": peak_memory_mib()})

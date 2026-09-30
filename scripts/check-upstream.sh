@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-expected=9d955671415fc19f069b9cc998928075c1f255ec
+expected=6d942c92081fbc139e736bbd9ac0023223c29b7f
 if [ ! -e laya/.git ]; then
   echo 'Missing ignored laya/ checkout' >&2
   exit 1
