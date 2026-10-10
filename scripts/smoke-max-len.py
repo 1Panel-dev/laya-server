@@ -87,9 +87,19 @@ with TemporaryDirectory() as temporary:
             measurements.append({"endpoint": endpoint, "max_len": options.get("max_len"),
                                  "input_tokens": data["usage"]["input_tokens"], "seconds": duration,
                                  "peak_memory_mib": peak_memory_mib()})
-        totals = client.get("/internal/usage").json()["totals"]
+        deadline = time.monotonic() + 5
+        while True:
+            response = client.get("/internal/usage")
+            assert response.status_code == 200, response.text
+            persisted_usage = response.json()
+            totals = persisted_usage["totals"]
+            if totals["requests"] >= len(cases):
+                break
+            remaining = deadline - time.monotonic()
+            assert remaining > 0, f"Usage did not flush within 5 seconds: expected {len(cases)} requests, got {totals}"
+            time.sleep(min(0.05, remaining))
         assert totals == {"requests": len(cases), "input_tokens": sum(case["input_tokens"] for case in measurements), "output_tokens": 0}
-        sources = client.get("/internal/usage").json()["sources"]
+        sources = persisted_usage["sources"]
         assert {item["source"]: item["requests"] for item in sources} == {"api_key": 2, "playground": 1}
         assert adapter.router.load("multilingual").cfg["max_len"] == 1024
     print(json.dumps({"result": "passed", "hardware": f"{platform.system()} {platform.machine()}",

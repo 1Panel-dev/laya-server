@@ -54,8 +54,8 @@ jobs:
       - name: Check out pinned upstream Laya
         shell: bash
         run: |
-          git clone --depth 1 --branch v0.3.22 https://github.com/NandhaKishorM/laya.git laya
-          git -C laya checkout --detach 6d942c92081fbc139e736bbd9ac0023223c29b7f
+          git clone --depth 1 --branch v0.4.2 https://github.com/NandhaKishorM/laya.git laya
+          git -C laya checkout --detach 68804629e8ccd9d616d48a40e87de9fabbeae069
           sh scripts/check-upstream.sh
 
       - name: Set up Python
