@@ -45,6 +45,29 @@ curl -X POST http://YOUR_SERVER_IP:8080/v1/systemone \
 
 Successful responses include `answers`, `model`, and actual token counts in `usage`. The published image includes the multilingual model; `model=auto` (the default) and `model=multilingual` are available. See **Documentation** in the console for more request examples.
 
+## Usage statistics and storage
+
+Inference responses enqueue usage statistics without waiting for SQLite writes. A single
+background thread per process reuses a connection, writes batches of up to 100 events,
+and coalesces `last_used_at` updates by API key. Partial batches flush after up to one
+second when the writer is idle; slow storage can delay statistics further. The `usage`
+field in each inference response is unchanged. `duration_ms` measures model prediction
+and result validation, not queue time or database writes.
+
+Statistics are best-effort, eventually consistent telemetry, not a billing or quota
+ledger. Each process buffers up to 1,000 queued events plus one in-flight batch. A full
+queue drops new statistics with rate-limited warnings. SQLite failures roll back where
+possible, log and drop the affected batch, then reconnect for later batches; failed
+batches are not retried because an uncertain commit could double-count usage. Neither
+condition turns successful inference into an HTTP 503. API-key authentication and
+revocation still use the database synchronously.
+
+Graceful shutdown attempts to drain the queue for up to five seconds. An in-flight
+SQLite call cannot be cancelled safely and may outlive that wait; forced termination,
+a shutdown timeout, or storage errors can lose unflushed statistics. Keep `/data` on
+low-latency persistent storage: background batching reduces write pressure but does
+not fix slow authentication reads or database locking.
+
 ## License and Feedback
 
 This project is licensed under [Apache License 2.0](LICENSE). For issues and suggestions, visit [GitHub Issues](https://github.com/1Panel-dev/laya-server/issues).

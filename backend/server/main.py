@@ -2,9 +2,9 @@ import hashlib
 import hmac
 import logging
 import secrets
-import sqlite3
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
@@ -13,11 +13,13 @@ from argon2.exceptions import VerificationError
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from .config import Settings
 from .database import Database, utc_now
 from .laya_adapter import LayaAdapter, Predictor
 from .schemas import CreateKeyRequest, InferenceRequest, LoginRequest
+from .usage_writer import UsageEvent, UsageWriter
 
 logger = logging.getLogger(__name__)
 SESSION_COOKIE = "laya_session"
@@ -36,7 +38,18 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
     settings = settings or Settings.from_env()
     db = Database(settings.database_path)
     db.initialize()
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    usage_writer = UsageWriter(db)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        usage_writer.start()
+        try:
+            yield
+        finally:
+            # Joining a slow writer must not block the event loop.
+            await run_in_threadpool(usage_writer.stop)
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     hasher = PasswordHasher()
     router_holder: dict[str, Predictor] = {}
     router_lock = threading.Lock()
@@ -129,17 +142,10 @@ def create_app(settings: Settings | None = None, predictor: Predictor | None = N
             logger.error("Laya inference failed: %s", type(exc).__name__)
             raise error(503, "MODEL_UNAVAILABLE", "Model is unavailable")
         duration_ms = round((time.monotonic() - started) * 1000)
-        try:
-            with db.connect() as connection:
-                connection.execute(
-                    "INSERT INTO usage_events (created_at,source,key_id,model,input_tokens,output_tokens,duration_ms) VALUES (?,?,?,?,?,?,?)",
-                    (utc_now(), source, key_id, result["model"], usage["input_tokens"], usage["output_tokens"], duration_ms),
-                )
-                if key_id is not None:
-                    connection.execute("UPDATE api_keys SET last_used_at=? WHERE id=?", (utc_now(), key_id))
-        except sqlite3.Error:
-            logger.exception("Failed to persist usage")
-            raise error(503, "USAGE_UNAVAILABLE", "Usage could not be recorded")
+        usage_writer.submit(UsageEvent(
+            utc_now(), source, key_id, result["model"],
+            usage["input_tokens"], usage["output_tokens"], duration_ms,
+        ))
         return result
 
     @app.get("/health/live")

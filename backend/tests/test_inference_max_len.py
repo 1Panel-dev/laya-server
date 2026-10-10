@@ -3,7 +3,7 @@ from threading import Barrier
 
 import pytest
 from argon2 import PasswordHasher
-from fastapi.testclient import TestClient
+from conftest import wait_for_usage
 
 from server.config import Settings
 
@@ -32,7 +32,7 @@ def password_hash():
 
 
 @pytest.fixture
-def inference_client(tmp_path, monkeypatch, password_hash):
+def inference_client(tmp_path, monkeypatch, password_hash, client_factory):
     monkeypatch.setenv("LAYA_ADMIN_USERNAME", "admin")
     monkeypatch.setenv("LAYA_ADMIN_PASSWORD_HASH", password_hash)
     monkeypatch.delenv("LAYA_ADMIN_PASSWORD", raising=False)
@@ -42,7 +42,7 @@ def inference_client(tmp_path, monkeypatch, password_hash):
     predictor = RecordingPredictor()
     settings = Settings("admin", password_hash, tmp_path / "db.sqlite3", 1,
                         tmp_path / "models", None, 1, tmp_path / "missing-dist", "multilingual")
-    client = TestClient(create_app(settings, predictor))
+    client = client_factory(create_app(settings, predictor))
     assert client.post("/internal/auth/login", json={"username": "admin", "password": "test-password"}).status_code == 200
     csrf = client.get("/internal/auth/session").json()["csrf_token"]
     playground_headers = {"X-CSRF-Token": csrf}
@@ -50,7 +50,6 @@ def inference_client(tmp_path, monkeypatch, password_hash):
     headers = {"/v1/systemone": {"Authorization": f"Bearer {key}"},
                "/internal/playground": playground_headers}
     yield client, predictor, headers
-    client.close()
 
 
 @pytest.mark.parametrize("endpoint", ["/v1/systemone", "/internal/playground"])
@@ -61,7 +60,7 @@ def test_max_len_valid_and_default_requests(inference_client, endpoint, options)
     assert response.status_code == 200, response.text
     expected = {} if options.get("max_len") is None else options
     assert predictor.calls == [(PAYLOAD["state"], "multilingual", expected)]
-    assert client.get("/internal/usage").json()["totals"] == {
+    assert wait_for_usage(client, 1)["totals"] == {
         "requests": 1, "input_tokens": 37, "output_tokens": 0,
     }
 
@@ -93,7 +92,7 @@ def test_concurrent_max_len_requests_keep_individual_budgets(inference_client):
         responses = list(executor.map(request, cases))
     assert [response.status_code for response in responses] == [200, 200, 200]
     assert {state: overrides for state, model, overrides in predictor.calls} == dict(cases)
-    assert client.get("/internal/usage").json()["totals"]["requests"] == 3
+    assert wait_for_usage(client, 3)["totals"]["requests"] == 3
 
 
 @pytest.mark.parametrize("endpoint", ["/v1/systemone", "/internal/playground"])
@@ -105,4 +104,39 @@ def test_multi_question_usage_is_not_capped_by_max_len(inference_client, endpoin
     assert response.status_code == 200, response.text
     assert set(response.json()["answers"]) == set(questions)
     assert response.json()["usage"]["input_tokens"] == 600
-    assert client.get("/internal/usage").json()["totals"]["input_tokens"] == 600
+    assert wait_for_usage(client, 1)["totals"]["input_tokens"] == 600
+
+
+@pytest.mark.parametrize("endpoint", ["/v1/systemone", "/internal/playground"])
+@pytest.mark.parametrize("storage_error", [False, True], ids=["blocked-storage", "failed-storage"])
+def test_usage_storage_does_not_block_successful_inference(inference_client, monkeypatch, endpoint, storage_error):
+    import sqlite3
+    from threading import Event
+    from server.usage_writer import UsageWriter
+
+    entered = Event()
+    release = Event()
+    original = UsageWriter._write_batch
+
+    def blocked_write(connection, batch):
+        entered.set()
+        assert release.wait(5)
+        if storage_error:
+            raise sqlite3.OperationalError("simulated slow storage failure")
+        original(connection, batch)
+
+    monkeypatch.setattr(UsageWriter, '_write_batch', staticmethod(blocked_write))
+    client, predictor, headers = inference_client
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        try:
+            response = pool.submit(client.post, endpoint, json=PAYLOAD, headers=headers[endpoint])
+            assert entered.wait(3)
+            # The writer is still blocked here: HTTP completion cannot depend on it.
+            result = response.result(timeout=1)
+            assert result.status_code == 200
+            assert result.json()['usage']['input_tokens'] == 37
+            assert client.post(endpoint, json=PAYLOAD, headers=headers[endpoint]).status_code == 200
+            if endpoint == '/v1/systemone':
+                assert client.post(endpoint, json=PAYLOAD).status_code == 401
+        finally:
+            release.set()
