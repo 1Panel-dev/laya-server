@@ -5,7 +5,7 @@ from threading import Barrier
 
 import pytest
 from argon2 import PasswordHasher
-from fastapi.testclient import TestClient
+from conftest import wait_for_usage
 
 os.environ.setdefault("LAYA_ADMIN_USERNAME", "test-admin")
 os.environ.setdefault("LAYA_ADMIN_PASSWORD_HASH", PasswordHasher().hash("test-password"))
@@ -41,7 +41,7 @@ PAYLOAD = {
 }
 
 
-def test_multilingual_image_routes_auto_and_rejects_unbundled_models(tmp_path):
+def test_multilingual_image_routes_auto_and_rejects_unbundled_models(tmp_path, client_factory):
     model = tmp_path / "models" / "multilingual"
     for filename in ("rl_agent_config.json", "model.safetensors", "tokenizer/tokenizer.json", "encoder/config.json"):
         path = model / filename
@@ -50,7 +50,7 @@ def test_multilingual_image_routes_auto_and_rejects_unbundled_models(tmp_path):
     fake = FakePredictor()
     settings = Settings("admin", PasswordHasher().hash("correct horse battery staple"), tmp_path / "db.sqlite3",
                         1, tmp_path / "models", None, 1, tmp_path / "missing-dist", "multilingual")
-    client = TestClient(create_app(settings, fake))
+    client = client_factory(create_app(settings, fake))
     assert client.get("/health/ready").status_code == 200
     assert client.get("/internal/models").status_code == 401
     origin = {"Origin": "http://testserver"}
@@ -68,7 +68,7 @@ def test_multilingual_image_routes_auto_and_rejects_unbundled_models(tmp_path):
     assert fake.models == ["multilingual", "multilingual"]
 
 
-def test_admin_password_from_environment(tmp_path, monkeypatch):
+def test_admin_password_from_environment(tmp_path, monkeypatch, client_factory):
     password = "0123456789"
     monkeypatch.setenv("LAYA_ADMIN_USERNAME", "configured-admin")
     monkeypatch.setenv("LAYA_ADMIN_PASSWORD", password)
@@ -84,7 +84,7 @@ def test_admin_password_from_environment(tmp_path, monkeypatch):
     monkeypatch.delenv("LAYA_MODEL_PROFILE")
     assert settings.admin_password_hash != password
     assert settings.admin_password_hash.startswith("$argon2id$")
-    client = TestClient(create_app(settings, FakePredictor()))
+    client = client_factory(create_app(settings, FakePredictor()))
     response = client.post(
         "/internal/auth/login",
         json={"username": "configured-admin", "password": password},
@@ -95,7 +95,7 @@ def test_admin_password_from_environment(tmp_path, monkeypatch):
     assert client.post("/internal/api-keys", json={"name": "without-origin"},
                        headers={"X-CSRF-Token": csrf}).status_code == 201
 
-    https_client = TestClient(create_app(settings, FakePredictor()), base_url="https://testserver")
+    https_client = client_factory(create_app(settings, FakePredictor()), base_url="https://testserver")
     secure_login = https_client.post("/internal/auth/login", json={"username": "configured-admin", "password": password})
     assert secure_login.status_code == 200
     assert all("; secure" in value.lower() for value in secure_login.headers.get_list("set-cookie"))
@@ -117,12 +117,12 @@ def test_admin_password_from_environment(tmp_path, monkeypatch):
         Settings.from_env()
 
 
-def test_login_key_inference_usage_revoke_logout(tmp_path):
+def test_login_key_inference_usage_revoke_logout(tmp_path, client_factory):
     fake = FakePredictor()
     db_path = tmp_path / "db.sqlite3"
     settings = Settings("admin", PasswordHasher().hash("correct horse battery staple"), db_path,
                         1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
-    client = TestClient(create_app(settings, fake))
+    client = client_factory(create_app(settings, fake))
     origin = {"Origin": "http://testserver"}
 
     assert client.get("/internal/api-keys").status_code == 401
@@ -171,10 +171,10 @@ def test_login_key_inference_usage_revoke_logout(tmp_path):
     assert prediction.json()["usage"] == {"input_tokens": 37, "output_tokens": 0}
     assert set(prediction.json()["answers"]) == set(PAYLOAD["questions"])
     assert fake.calls == 1
-    assert client.get("/internal/usage").json()["totals"] == {"requests": 1, "input_tokens": 37, "output_tokens": 0}
+    assert wait_for_usage(client, 1)["totals"] == {"requests": 1, "input_tokens": 37, "output_tokens": 0}
     debug = client.post("/internal/playground", json=PAYLOAD, headers=write_headers)
     assert debug.status_code == 200
-    usage = client.get("/internal/usage").json()
+    usage = wait_for_usage(client, 2)
     assert usage["totals"] == {"requests": 2, "input_tokens": 74, "output_tokens": 0}
     assert {item["source"] for item in usage["sources"]} == {"api_key", "playground"}
 
@@ -184,13 +184,13 @@ def test_login_key_inference_usage_revoke_logout(tmp_path):
     assert client.post("/internal/auth/logout", headers=write_headers).status_code == 200
     assert client.get("/internal/api-keys").status_code == 401
 
-    restarted = TestClient(create_app(settings, fake))
+    restarted = client_factory(create_app(settings, fake))
     assert restarted.post("/v1/systemone", json=PAYLOAD, headers={"Authorization": f"Bearer {key}"}).status_code == 401
     with sqlite3.connect(db_path) as connection:
         assert connection.execute("SELECT COUNT(*) FROM usage_events").fetchone()[0] == 2
 
 
-def test_rate_limit_expiry_and_model_failure(tmp_path):
+def test_rate_limit_expiry_and_model_failure(tmp_path, client_factory):
     class UnavailablePredictor:
         def predict(self, state, questions, model=None):
             raise FileNotFoundError("secret internal model path")
@@ -198,7 +198,7 @@ def test_rate_limit_expiry_and_model_failure(tmp_path):
     db_path = tmp_path / "db.sqlite3"
     settings = Settings("admin", PasswordHasher().hash("password"), db_path,
                         1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
-    client = TestClient(create_app(settings, UnavailablePredictor()))
+    client = client_factory(create_app(settings, UnavailablePredictor()))
     origin = {"Origin": "http://testserver"}
     assert client.get("/health/ready").json()["detail"]["code"] == "MODEL_UNAVAILABLE"
     assert client.get("/docs").status_code == 404
@@ -223,11 +223,11 @@ def test_rate_limit_expiry_and_model_failure(tmp_path):
 
 
 @pytest.mark.parametrize("keep_cookies", [True, False], ids=["stale-cookies", "expired-cookies"])
-def test_login_after_session_expiry(tmp_path, keep_cookies):
+def test_login_after_session_expiry(tmp_path, keep_cookies, client_factory):
     db_path = tmp_path / "db.sqlite3"
     settings = Settings("admin", PasswordHasher().hash("test-password"), db_path,
                         1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
-    client = TestClient(create_app(settings, FakePredictor()))
+    client = client_factory(create_app(settings, FakePredictor()))
     credentials = {"username": "admin", "password": "test-password"}
     origin = {"Origin": "http://testserver"}
     assert client.post("/internal/auth/login", json=credentials, headers=origin).status_code == 200
@@ -260,7 +260,7 @@ def test_login_after_session_expiry(tmp_path, keep_cookies):
     assert [key["name"] for key in client.get("/internal/api-keys").json()] == ["after-login"]
 
 
-def test_concurrent_inference_requests_are_not_rejected(tmp_path):
+def test_concurrent_inference_requests_are_not_rejected(tmp_path, client_factory):
     class ConcurrentPredictor(FakePredictor):
         def __init__(self):
             super().__init__()
@@ -273,7 +273,7 @@ def test_concurrent_inference_requests_are_not_rejected(tmp_path):
     settings = Settings("admin", PasswordHasher().hash("test-password"), tmp_path / "db.sqlite3",
                         1, tmp_path / "models", None, 1, tmp_path / "missing-dist")
     app = create_app(settings, ConcurrentPredictor())
-    client = TestClient(app)
+    client = client_factory(app)
     origin = {"Origin": "http://testserver"}
     assert client.post("/internal/auth/login", json={"username": "admin", "password": "test-password"}, headers=origin).status_code == 200
     csrf = client.get("/internal/auth/session").json()["csrf_token"]
@@ -284,13 +284,13 @@ def test_concurrent_inference_requests_are_not_rejected(tmp_path):
         if index == 2:
             return client.post("/internal/playground", json=PAYLOAD,
                                headers={**origin, "X-CSRF-Token": csrf})
-        return TestClient(app).post("/v1/systemone", json=PAYLOAD, headers={"Authorization": f"Bearer {key}"})
+        return client.post("/v1/systemone", json=PAYLOAD, headers={"Authorization": f"Bearer {key}"})
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         responses = list(executor.map(request, range(3)))
 
     assert [response.status_code for response in responses] == [200, 200, 200]
-    assert client.get("/internal/usage").json()["totals"]["requests"] == 3
+    assert wait_for_usage(client, 3)["totals"]["requests"] == 3
     with sqlite3.connect(settings.database_path) as connection:
         assert dict(connection.execute("SELECT source, COUNT(*) FROM usage_events GROUP BY source").fetchall()) == {
             "api_key": 2, "playground": 1,

@@ -13,12 +13,20 @@ class Database:
     def __init__(self, path: Path):
         self.path = path
 
+    def open_connection(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self.path, timeout=10)
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys=ON")
+            connection.execute("PRAGMA busy_timeout=10000")
+        except sqlite3.Error:
+            connection.close()
+            raise
+        return connection
+
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(self.path, timeout=10)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=10000")
+        connection = self.open_connection()
         try:
             yield connection
             connection.commit()
